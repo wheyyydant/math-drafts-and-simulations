@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buffon's Needle &amp; Noodle Problem — Monte Carlo Pi Estimation</title>
+  
+  <!-- MathJax CDN for dynamic mathematical typography -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+  <style>
+    :root {
+      --bg: #f9f9fb;
+      --card-bg: #ffffff;
+      --border: #d1d5db;
+      --border-dark: #2d3748;
+      --text: #1a1a1a;
+      --text-muted: #595959;
+      --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --hit-color: #16a34a;
+      --miss-color: #dc2626;
+      --pi-ref-color: #d97706;
+      --trace-color: #0f172a;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      padding: 24px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-bottom: 4px;
+      color: #0f172a;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    hr {
+      border: 0;
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
+
+    /* Academic Abstract / Proof Box */
+    .proof-box {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--border-dark);
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      font-size: 0.86rem;
+      line-height: 1.6;
+    }
+
+    .proof-box strong {
+      color: #0f172a;
+    }
+
+    .math-row {
+      margin: 8px 0;
+      padding: 6px 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 2px;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+    }
+
+    /* Fieldset and Legend */
+    fieldset {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 14px 16px;
+      margin-bottom: 20px;
+    }
+
+    legend {
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0 6px;
+      color: var(--border-dark);
+    }
+
+    /* Controls Bar */
+    .controls-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    button {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      background-color: #f1f5f9;
+      color: #1e293b;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: background-color 0.1s ease, border-color 0.1s ease;
+    }
+
+    button:hover {
+      background-color: #e2e8f0;
+      border-color: #94a3b8;
+    }
+
+    button:active {
+      background-color: #cbd5e1;
+    }
+
+    button.btn-primary {
+      background-color: #1e293b;
+      color: #ffffff;
+      border-color: #0f172a;
+    }
+
+    button.btn-primary:hover {
+      background-color: #334155;
+    }
+
+    button.btn-danger {
+      background-color: #991b1b;
+      color: #ffffff;
+      border-color: #7f1d1d;
+    }
+
+    button.btn-danger:hover {
+      background-color: #b91c1c;
+    }
+
+    .control-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      font-family: var(--font-mono);
+    }
+
+    .control-item label {
+      font-weight: 600;
+      color: #334155;
+    }
+
+    select, input[type="range"] {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+    }
+
+    select {
+      background-color: #ffffff;
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 2px;
+      color: var(--text);
+    }
+
+    input[type="range"] {
+      accent-color: var(--border-dark);
+      cursor: pointer;
+      vertical-align: middle;
+    }
+
+    /* Academic Data Table */
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      font-family: var(--font-mono);
+      background-color: var(--card-bg);
+    }
+
+    table.data-table th, 
+    table.data-table td {
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      text-align: left;
+    }
+
+    table.data-table th {
+      background-color: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      font-size: 0.75rem;
+    }
+
+    table.data-table tr:nth-child(even) {
+      background-color: #fafafc;
+    }
+
+    .val-highlight {
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    /* Dual Canvas Layout */
+    .canvas-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 960px) {
+      .canvas-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .canvas-panel {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 12px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 0.8rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: #334155;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 6px;
+    }
+
+    .legend-span {
+      font-size: 0.75rem;
+      font-weight: normal;
+    }
+
+    .canvas-wrapper {
+      width: 100%;
+      height: 380px;
+      position: relative;
+      background: #ffffff;
+      border: 1px solid var(--border);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* System Status Footer */
+    footer {
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Title & Academic Subtitle -->
+  <h1>Buffon's Needle &amp; Noodle Problem: Monte Carlo &pi; Estimation</h1>
+  <div class="subtitle">Geometric Probability Parameter Mapping &amp; Central Limit Theorem Asymptotic Variance Analysis</div>
+
+  <!-- Analytical Proof Header -->
+  <div class="proof-box">
+    <strong>Theoretical State Space &amp; Double Integral Derivation:</strong><br>
+    Let parallel grid lines have spacing $D$, needle length $L \le D$. Let midpoint distance to the nearest line be $y \sim U(0, D/2)$ and orientation angle $\theta \sim U(0, \pi/2)$.<br>
+    The uniform joint probability density over state space $\Omega = [0, D/2] \times [0, \pi/2]$ is $f(y, \theta) = \frac{1}{(D/2)(\pi/2)} = \frac{4}{\pi D}$.<br>
+    The needle intersects a grid line if and only if $y \le \frac{L}{2}\sin\theta$.
+    
+    <div class="math-row">
+      $$P = \iint_{\text{crossing}} f(y, \theta)\, dy\, d\theta = \frac{4}{\pi D} \int_{0}^{\pi/2} \left(\int_{0}^{\frac{L}{2}\sin\theta} dy\right) d\theta = \frac{4}{\pi D} \int_{0}^{\pi/2} \frac{L}{2}\sin\theta\, d\theta = \frac{2L}{\pi D}$$
+    </div>
+
+    <div class="math-row">
+      $$\text{Estimator: } \hat{\pi} = \frac{2L}{\hat{P} \cdot D} = \frac{2 L N}{C D}, \qquad \text{Asymptotic Standard Error: } \text{SE}(\hat{\pi}) \approx \frac{\pi}{\sqrt{N}}\sqrt{\frac{\pi D}{2L} - 1} = O(1/\sqrt{N})$$
+    </div>
+  </div>
+
+  <!-- Simulation Controls -->
+  <fieldset>
+    <legend>Simulation Execution &amp; Physical Parameters</legend>
+    <div class="controls-grid">
+      <div class="btn-group">
+        <button id="btnPlayPause" class="btn-primary">Start Simulation</button>
+        <button id="btnStep1">+1 Step</button>
+        <button id="btnStep100">+100</button>
+        <button id="btnStep10k">+10k Batch</button>
+        <button id="btnReset" class="btn-danger">Reset</button>
+      </div>
+
+      <div class="control-item">
+        <label for="selectSpeed">Speed:</label>
+        <select id="selectSpeed">
+          <option value="1">1 drop / frame</option>
+          <option value="5">5 drops / frame</option>
+          <option value="25" selected>25 drops / frame</option>
+          <option value="100">100 drops / frame</option>
+          <option value="500">500 drops / frame</option>
+          <option value="2000">2,000 drops / frame</option>
+          <option value="10000">10,000 drops / frame (Turbo)</option>
+        </select>
+      </div>
+
+      <div class="control-item">
+        <label for="rangeL">Length (L):</label>
+        <input type="range" id="rangeL" min="10" max="150" step="5" value="60">
+        <span id="valL">60 px</span>
+      </div>
+
+      <div class="control-item">
+        <label for="rangeD">Spacing (D):</label>
+        <input type="range" id="rangeD" min="40" max="200" step="5" value="80">
+        <span id="valD">80 px</span>
+      </div>
+
+      <div class="control-item">
+        <label for="selectPlotScale">X-Scale:</label>
+        <select id="selectPlotScale">
+          <option value="linear" selected>Linear Scale</option>
+          <option value="log">Logarithmic (log10 N)</option>
+        </select>
+      </div>
+
+      <div class="control-item">
+        <label for="selectDisplayMode">Field Buffer:</label>
+        <select id="selectDisplayMode">
+          <option value="fade" selected>Fading (Last 2000)</option>
+          <option value="cumulative">Cumulative Persistent</option>
+          <option value="last">Recent 100 Only</option>
+        </select>
+      </div>
+    </div>
+  </fieldset>
+
+  <!-- Empirical Analytics Table -->
+  <fieldset>
+    <legend>Empirical Analytics &amp; Statistical Output</legend>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Metric Name</th>
+          <th>Mathematical Symbol</th>
+          <th>Observed / Calculated</th>
+          <th>Theoretical Expected</th>
+          <th>Deviation / Statistical Bounds</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Estimated &pi;</strong></td>
+          <td><code>&pi;̂ = (2·L) / (P_obs·D)</code></td>
+          <td id="mPiEst" class="val-highlight">--</td>
+          <td>3.1415926535...</td>
+          <td id="mPiErr">--</td>
+        </tr>
+        <tr>
+          <td><strong>Total Drops (N)</strong></td>
+          <td><code>N</code></td>
+          <td id="mTotalN" class="val-highlight">0</td>
+          <td>--</td>
+          <td>Monte Carlo trials completed</td>
+        </tr>
+        <tr>
+          <td><strong>Crossing Events (C)</strong></td>
+          <td><code>C</code></td>
+          <td id="mCrossCount" class="val-highlight">0</td>
+          <td>--</td>
+          <td>Observed line intersections</td>
+        </tr>
+        <tr>
+          <td><strong>Crossing Probability</strong></td>
+          <td><code>P = C / N</code></td>
+          <td id="mPObs">0.000000</td>
+          <td id="mPExp">0.000000</td>
+          <td id="mPDiff">--</td>
+        </tr>
+        <tr>
+          <td><strong>CLT Standard Error</strong></td>
+          <td><code>SE(π̂) ~ O(1/√N)</code></td>
+          <td id="mStdErr">--</td>
+          <td>Asymptotic normal envelope</td>
+          <td id="mCLTBound">95% CI: --</td>
+        </tr>
+        <tr>
+          <td><strong>Regime Condition</strong></td>
+          <td><code>Ratio L / D</code></td>
+          <td id="mRatio">0.750</td>
+          <td>L &le; D (Short needle)</td>
+          <td id="mRegime" style="color: #16a34a; font-weight: 600;">Short Needle Regime Valid</td>
+        </tr>
+      </tbody>
+    </table>
+  </fieldset>
+
+  <!-- Dual Canvas Renderers -->
+  <div class="canvas-layout">
+    <!-- Left Canvas -->
+    <div class="canvas-panel">
+      <div class="panel-header">
+        <span>Figure 1: Geometric Field ($x \sim U(0, D/2), \theta \sim U(0, \pi)$)</span>
+        <span class="legend-span">
+          <span style="color: var(--hit-color); font-weight: bold;">&#9644; Hit</span> | 
+          <span style="color: var(--miss-color); font-weight: bold;">&#9644; Miss</span> | 
+          <span style="color: #000000;">&#9474; Line</span>
+        </span>
+      </div>
+      <div class="canvas-wrapper">
+        <canvas id="canvasField"></canvas>
+      </div>
+    </div>
+
+    <!-- Right Canvas -->
+    <div class="canvas-panel">
+      <div class="panel-header">
+        <span>Figure 2: Empirical &pi; Convergence &amp; 95% CLT Envelope</span>
+        <span class="legend-span">
+          <span style="color: var(--pi-ref-color); font-weight: bold;">-- &pi; (3.1416)</span> | 
+          <span style="color: var(--trace-color); font-weight: bold;">&#9644; &pi;̂</span> | 
+          <span style="color: #94a3b8;">::: 95% CLT</span>
+        </span>
+      </div>
+      <div class="canvas-wrapper">
+        <canvas id="canvasPlot"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Footer -->
+  <footer>
+    <span id="sysStatus">System: Idle | Performance: 60 FPS</span>
+    <span>Engine: High-Throughput Native Canvas 2D Vector Stream</span>
+  </footer>
+
+  <!-- Pure Native JavaScript Engine -->
+  <script>
+    (function () {
+      'use strict';
+
+      const PI_TRUE = Math.PI;
+
+      let state = {
+        isRunning: false,
+        N: 0,
+        C: 0,
+        L: 60,
+        D: 80,
+        batchSize: 25,
+        plotScale: 'linear',
+        displayMode: 'fade',
+        history: [],
+        needleBuffer: [],
+        maxNeedleVisuals: 2000,
+        fpsLastTime: performance.now(),
+        framesCount: 0,
+        fps: 0
+      };
+
+      const dom = {
+        btnPlayPause: document.getElementById('btnPlayPause'),
+        btnStep1: document.getElementById('btnStep1'),
+        btnStep100: document.getElementById('btnStep100'),
+        btnStep10k: document.getElementById('btnStep10k'),
+        btnReset: document.getElementById('btnReset'),
+        selectSpeed: document.getElementById('selectSpeed'),
+        rangeL: document.getElementById('rangeL'),
+        rangeD: document.getElementById('rangeD'),
+        valL: document.getElementById('valL'),
+        valD: document.getElementById('valD'),
+        selectPlotScale: document.getElementById('selectPlotScale'),
+        selectDisplayMode: document.getElementById('selectDisplayMode'),
+        mPiEst: document.getElementById('mPiEst'),
+        mPiErr: document.getElementById('mPiErr'),
+        mTotalN: document.getElementById('mTotalN'),
+        mCrossCount: document.getElementById('mCrossCount'),
+        mPObs: document.getElementById('mPObs'),
+        mPExp: document.getElementById('mPExp'),
+        mPDiff: document.getElementById('mPDiff'),
+        mStdErr: document.getElementById('mStdErr'),
+        mCLTBound: document.getElementById('mCLTBound'),
+        mRatio: document.getElementById('mRatio'),
+        mRegime: document.getElementById('mRegime'),
+        sysStatus: document.getElementById('sysStatus'),
+        canvasField: document.getElementById('canvasField'),
+        canvasPlot: document.getElementById('canvasPlot')
+      };
+
+      const ctxField = dom.canvasField.getContext('2d');
+      const ctxPlot = dom.canvasPlot.getContext('2d');
+
+      const bgCanvas = document.createElement('canvas');
+      const bgCtx = bgCanvas.getContext('2d');
+
+      function resizeCanvases() {
+        const dpr = window.devicePixelRatio || 1;
+        [dom.canvasField, dom.canvasPlot].forEach(c => {
+          const rect = c.parentElement.getBoundingClientRect();
+          const w = Math.floor(rect.width);
+          const h = Math.floor(rect.height);
+          if (c.width !== w * dpr || c.height !== h * dpr) {
+            c.width = w * dpr;
+            c.height = h * dpr;
+          }
+        });
+
+        const fieldRect = dom.canvasField.parentElement.getBoundingClientRect();
+        if (bgCanvas.width !== fieldRect.width * dpr || bgCanvas.height !== fieldRect.height * dpr) {
+          bgCanvas.width = fieldRect.width * dpr;
+          bgCanvas.height = fieldRect.height * dpr;
+          bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+        }
+
+        renderField();
+        renderPlot();
+      }
+
+      window.addEventListener('resize', resizeCanvases);
+
+      function dropNeedles(count) {
+        const dpr = window.devicePixelRatio || 1;
+        const width = dom.canvasField.width / dpr;
+        const height = dom.canvasField.height / dpr;
+        const L = state.L;
+        const D = state.D;
+        const halfL = L / 2;
+
+        let localCrossings = 0;
+        const newVisuals = [];
+
+        for (let i = 0; i < count; i++) {
+          const cx = Math.random() * width;
+          const cy = Math.random() * height;
+          const theta = Math.random() * Math.PI;
+
+          const dx = halfL * Math.cos(theta);
+          const dy = halfL * Math.sin(theta);
+
+          const x1 = cx - dx;
+          const x2 = cx + dx;
+
+          const minX = Math.min(x1, x2);
+          const maxX = Math.max(x1, x2);
+          const hit = Math.floor(minX / D) !== Math.floor(maxX / D);
+
+          if (hit) {
+            localCrossings++;
+          }
+
+          if (count <= 100 || (i % Math.ceil(count / 100) === 0)) {
+            newVisuals.push({
+              x1: x1,
+              y1: cy - dy,
+              x2: x2,
+              y2: cy + dy,
+              hit: hit
+            });
+          }
+        }
+
+        state.N += count;
+        state.C += localCrossings;
+
+        if (state.displayMode === 'cumulative') {
+          bgCtx.save();
+          bgCtx.scale(dpr, dpr);
+          for (let k = 0; k < newVisuals.length; k++) {
+            const nv = newVisuals[k];
+            bgCtx.strokeStyle = nv.hit ? 'rgba(22, 163, 74, 0.45)' : 'rgba(220, 38, 38, 0.25)';
+            bgCtx.lineWidth = 1;
+            bgCtx.beginPath();
+            bgCtx.moveTo(nv.x1, nv.y1);
+            bgCtx.lineTo(nv.x2, nv.y2);
+            bgCtx.stroke();
+          }
+          bgCtx.restore();
+        } else {
+          for (let j = 0; j < newVisuals.length; j++) {
+            state.needleBuffer.push(newVisuals[j]);
+          }
+          const maxCap = state.displayMode === 'last' ? 100 : state.maxNeedleVisuals;
+          if (state.needleBuffer.length > maxCap) {
+            state.needleBuffer.splice(0, state.needleBuffer.length - maxCap);
+          }
+        }
+
+        recordHistoryPoint();
+        updateDashboard();
+      }
+
+      function recordHistoryPoint() {
+        if (state.N === 0) return;
+        const P_obs = state.C / state.N;
+        let piEst = 0;
+        let se = 0;
+
+        if (P_obs > 0) {
+          piEst = (2 * state.L) / (P_obs * state.D);
+          const pForVar = Math.min(Math.max(P_obs, 0.0001), 0.9999);
+          se = (piEst / Math.sqrt(state.N)) * Math.sqrt((1 - pForVar) / pForVar);
+        }
+
+        const lastPt = state.history[state.history.length - 1];
+        if (!lastPt || state.N - lastPt.N >= Math.max(1, Math.floor(state.N * 0.005)) || state.history.length < 500) {
+          state.history.push({
+            N: state.N,
+            piEst: piEst,
+            se: se
+          });
+          if (state.history.length > 2500) {
+            state.history = state.history.filter((_, idx) => idx % 2 === 0 || idx > state.history.length - 500);
+          }
+        }
+      }
+
+      function updateDashboard() {
+        const N = state.N;
+        const C = state.C;
+        const L = state.L;
+        const D = state.D;
+        const ratio = L / D;
+
+        dom.mTotalN.textContent = N.toLocaleString();
+        dom.mCrossCount.textContent = C.toLocaleString();
+
+        const P_obs = N > 0 ? C / N : 0;
+        const P_exp = (2 * L) / (PI_TRUE * D);
+
+        dom.mPObs.textContent = P_obs.toFixed(6);
+        dom.mPExp.textContent = P_exp.toFixed(6);
+
+        if (N > 0) {
+          const pDiff = P_obs - P_exp;
+          dom.mPDiff.textContent = (pDiff >= 0 ? '+' : '') + pDiff.toFixed(6);
+        } else {
+          dom.mPDiff.textContent = '--';
+        }
+
+        if (P_obs > 0) {
+          const piEst = (2 * L) / (P_obs * D);
+          const absErr = Math.abs(piEst - PI_TRUE);
+          const pctErr = (absErr / PI_TRUE) * 100;
+
+          dom.mPiEst.textContent = piEst.toFixed(6);
+          dom.mPiErr.textContent = `Abs Err: ${absErr.toFixed(6)} (${pctErr.toFixed(3)}%)`;
+
+          const pForVar = Math.min(Math.max(P_obs, 0.0001), 0.9999);
+          const se = (piEst / Math.sqrt(N)) * Math.sqrt((1 - pForVar) / pForVar);
+          dom.mStdErr.textContent = `± ${se.toFixed(6)}`;
+          dom.mCLTBound.textContent = `95% CI: [${(piEst - 1.96 * se).toFixed(4)}, ${(piEst + 1.96 * se).toFixed(4)}]`;
+        } else {
+          dom.mPiEst.textContent = '--';
+          dom.mPiErr.textContent = '--';
+          dom.mStdErr.textContent = '--';
+          dom.mCLTBound.textContent = '95% CI: --';
+        }
+
+        dom.mRatio.textContent = ratio.toFixed(3);
+        if (ratio <= 1.0) {
+          dom.mRegime.textContent = 'Short Needle (L ≤ D) — Exact Analytical Solution';
+          dom.mRegime.style.color = '#16a34a';
+        } else {
+          dom.mRegime.textContent = 'Long Needle (L > D) — Approximation Regime';
+          dom.mRegime.style.color = '#d97706';
+        }
+      }
+
+      function renderField() {
+        const dpr = window.devicePixelRatio || 1;
+        const w = dom.canvasField.width;
+        const h = dom.canvasField.height;
+        const cssW = w / dpr;
+        const cssH = h / dpr;
+        const D = state.D;
+
+        ctxField.clearRect(0, 0, w, h);
+        ctxField.save();
+        ctxField.scale(dpr, dpr);
+
+        ctxField.fillStyle = '#ffffff';
+        ctxField.fillRect(0, 0, cssW, cssH);
+
+        // Draw Vertical Grid Lines
+        ctxField.strokeStyle = '#334155';
+        ctxField.lineWidth = 1.2;
+        ctxField.setLineDash([]);
+
+        for (let x = 0; x <= cssW; x += D) {
+          ctxField.beginPath();
+          ctxField.moveTo(x, 0);
+          ctxField.lineTo(x, cssH);
+          ctxField.stroke();
+
+          ctxField.fillStyle = '#64748b';
+          ctxField.font = '10px monospace';
+          ctxField.fillText(`x=${x}`, x + 4, 14);
+        }
+
+        // Draw Needles
+        if (state.displayMode === 'cumulative') {
+          ctxField.drawImage(bgCanvas, 0, 0, cssW, cssH);
+        } else {
+          const buf = state.needleBuffer;
+          const len = buf.length;
+          for (let i = 0; i < len; i++) {
+            const needle = buf[i];
+            const alpha = state.displayMode === 'fade' ? (0.2 + 0.8 * (i / len)) : 0.9;
+
+            ctxField.strokeStyle = needle.hit 
+              ? `rgba(22, 163, 74, ${alpha})` 
+              : `rgba(220, 38, 38, ${alpha * 0.75})`;
+            ctxField.lineWidth = needle.hit ? 1.6 : 1.1;
+
+            ctxField.beginPath();
+            ctxField.moveTo(needle.x1, needle.y1);
+            ctxField.lineTo(needle.x2, needle.y2);
+            ctxField.stroke();
+          }
+        }
+
+        ctxField.restore();
+      }
+
+      function renderPlot() {
+        const dpr = window.devicePixelRatio || 1;
+        const w = dom.canvasPlot.width;
+        const h = dom.canvasPlot.height;
+        const cssW = w / dpr;
+        const cssH = h / dpr;
+
+        ctxPlot.clearRect(0, 0, w, h);
+        ctxPlot.save();
+        ctxPlot.scale(dpr, dpr);
+
+        ctxPlot.fillStyle = '#ffffff';
+        ctxPlot.fillRect(0, 0, cssW, cssH);
+
+        const pad = { top: 20, right: 30, bottom: 35, left: 55 };
+        const plotW = cssW - pad.left - pad.right;
+        const plotH = cssH - pad.top - pad.bottom;
+
+        if (plotW <= 0 || plotH <= 0) {
+          ctxPlot.restore();
+          return;
+        }
+
+        // Plot bounding box
+        ctxPlot.strokeStyle = '#94a3b8';
+        ctxPlot.lineWidth = 1;
+        ctxPlot.strokeRect(pad.left, pad.top, plotW, plotH);
+
+        let yMin = 2.0;
+        let yMax = 4.3;
+
+        if (state.history.length > 5) {
+          const recentPts = state.history.slice(-100);
+          for (let i = 0; i < recentPts.length; i++) {
+            const val = recentPts[i].piEst;
+            if (val > 0 && isFinite(val)) {
+              if (val > yMax - 0.2 && val < 8.0) yMax = Math.min(8.0, val + 0.5);
+              if (val < yMin + 0.2 && val > 1.0) yMin = Math.max(1.0, val - 0.5);
+            }
+          }
+        }
+
+        const maxN = Math.max(state.N, 100);
+        const isLog = state.plotScale === 'log';
+        const minLogN = 10;
+
+        function getX(n) {
+          if (isLog) {
+            const clampedN = Math.max(n, minLogN);
+            const logMin = Math.log10(minLogN);
+            const logMax = Math.log10(Math.max(maxN, minLogN + 1));
+            return pad.left + ((Math.log10(clampedN) - logMin) / (logMax - logMin)) * plotW;
+          } else {
+            return pad.left + (n / maxN) * plotW;
+          }
+        }
+
+        function getY(val) {
+          const clamped = Math.max(yMin, Math.min(yMax, val));
+          return pad.top + plotH - ((clamped - yMin) / (yMax - yMin)) * plotH;
+        }
+
+        // Horizontal Gridlines and Y Labels
+        const yTicks = [2.0, 2.5, 3.0, PI_TRUE, 3.5, 4.0];
+        ctxPlot.font = '10px monospace';
+        ctxPlot.textAlign = 'right';
+        ctxPlot.textBaseline = 'middle';
+
+        for (let t = 0; t < yTicks.length; t++) {
+          const tick = yTicks[t];
+          if (tick < yMin || tick > yMax) continue;
+          const yPos = getY(tick);
+          const isPi = Math.abs(tick - PI_TRUE) < 0.001;
+
+          ctxPlot.strokeStyle = isPi ? '#d97706' : '#e2e8f0';
+          ctxPlot.lineWidth = isPi ? 1.5 : 1;
+          if (isPi) ctxPlot.setLineDash([4, 4]);
+          else ctxPlot.setLineDash([]);
+
+          ctxPlot.beginPath();
+          ctxPlot.moveTo(pad.left, yPos);
+          ctxPlot.lineTo(pad.left + plotW, yPos);
+          ctxPlot.stroke();
+
+          ctxPlot.fillStyle = isPi ? '#d97706' : '#64748b';
+          ctxPlot.fillText(isPi ? 'π (3.1416)' : tick.toFixed(2), pad.left - 6, yPos);
+        }
+        ctxPlot.setLineDash([]);
+
+        // X-Axis Gridlines & Labels
+        ctxPlot.textAlign = 'center';
+        ctxPlot.textBaseline = 'top';
+        ctxPlot.fillStyle = '#64748b';
+
+        if (isLog) {
+          const startExp = Math.floor(Math.log10(minLogN));
+          const endExp = Math.ceil(Math.log10(maxN));
+          for (let exp = startExp; exp <= endExp; exp++) {
+            const v = Math.pow(10, exp);
+            if (v > maxN * 1.05) continue;
+            const xPos = getX(v);
+            if (xPos >= pad.left && xPos <= pad.left + plotW) {
+              ctxPlot.strokeStyle = '#e2e8f0';
+              ctxPlot.beginPath();
+              ctxPlot.moveTo(xPos, pad.top);
+              ctxPlot.lineTo(xPos, pad.top + plotH);
+              ctxPlot.stroke();
+              ctxPlot.fillText(`10^${exp}`, xPos, pad.top + plotH + 6);
+            }
+          }
+        } else {
+          const step = maxN <= 500 ? 100 : Math.pow(10, Math.floor(Math.log10(maxN))) * (maxN / Math.pow(10, Math.floor(Math.log10(maxN))) > 5 ? 2 : 1);
+          for (let s = 0; s <= maxN; s += step) {
+            if (s === 0) continue;
+            const xCoord = getX(s);
+            ctxPlot.strokeStyle = '#e2e8f0';
+            ctxPlot.beginPath();
+            ctxPlot.moveTo(xCoord, pad.top);
+            ctxPlot.lineTo(xCoord, pad.top + plotH);
+            ctxPlot.stroke();
+            ctxPlot.fillText(s >= 1000 ? `${(s / 1000).toFixed(0)}k` : s, xCoord, pad.top + plotH + 6);
+          }
+        }
+
+        // Draw CLT 95% Error Envelope Funnel
+        const P_exp = (2 * state.L) / (PI_TRUE * state.D);
+        if (P_exp > 0 && P_exp < 1) {
+          const boundSteps = 100;
+          const upperPoints = [];
+          const lowerPoints = [];
+
+          for (let b = 1; b <= boundSteps; b++) {
+            const nVal = isLog 
+              ? Math.pow(10, Math.log10(minLogN) + (b / boundSteps) * (Math.log10(Math.max(maxN, minLogN + 1)) - Math.log10(minLogN)))
+              : (b / boundSteps) * maxN;
+
+            const seN = (PI_TRUE / Math.sqrt(nVal)) * Math.sqrt((1 - P_exp) / P_exp);
+            upperPoints.push({ x: getX(nVal), y: getY(PI_TRUE + 1.96 * seN) });
+            lowerPoints.push({ x: getX(nVal), y: getY(PI_TRUE - 1.96 * seN) });
+          }
+
+          ctxPlot.fillStyle = 'rgba(15, 23, 42, 0.04)';
+          ctxPlot.beginPath();
+          if (upperPoints.length > 0) {
+            ctxPlot.moveTo(upperPoints[0].x, upperPoints[0].y);
+            for (let i = 1; i < upperPoints.length; i++) ctxPlot.lineTo(upperPoints[i].x, upperPoints[i].y);
+            for (let i = lowerPoints.length - 1; i >= 0; i--) ctxPlot.lineTo(lowerPoints[i].x, lowerPoints[i].y);
+            ctxPlot.closePath();
+            ctxPlot.fill();
+          }
+
+          ctxPlot.strokeStyle = '#94a3b8';
+          ctxPlot.lineWidth = 1;
+          ctxPlot.setLineDash([2, 2]);
+
+          ctxPlot.beginPath();
+          upperPoints.forEach((p, idx) => idx === 0 ? ctxPlot.moveTo(p.x, p.y) : ctxPlot.lineTo(p.x, p.y));
+          ctxPlot.stroke();
+
+          ctxPlot.beginPath();
+          lowerPoints.forEach((p, idx) => idx === 0 ? ctxPlot.moveTo(p.x, p.y) : ctxPlot.lineTo(p.x, p.y));
+          ctxPlot.stroke();
+          ctxPlot.setLineDash([]);
+        }
+
+        // Draw Empirical Estimate Trace Curve
+        if (state.history.length > 1) {
+          ctxPlot.strokeStyle = '#0f172a';
+          ctxPlot.lineWidth = 1.8;
+          ctxPlot.beginPath();
+
+          let started = false;
+          for (let hIdx = 0; hIdx < state.history.length; hIdx++) {
+            const pt = state.history[hIdx];
+            if (pt.piEst <= 0 || !isFinite(pt.piEst)) continue;
+            const ptX = getX(pt.N);
+            const ptY = getY(pt.piEst);
+
+            if (!started) {
+              ctxPlot.moveTo(ptX, ptY);
+              started = true;
+            } else {
+              ctxPlot.lineTo(ptX, ptY);
+            }
+          }
+          ctxPlot.stroke();
+
+          const lastPt = state.history[state.history.length - 1];
+          if (lastPt && lastPt.piEst > 0 && isFinite(lastPt.piEst)) {
+            const curX = getX(lastPt.N);
+            const curY = getY(lastPt.piEst);
+
+            ctxPlot.fillStyle = '#0f172a';
+            ctxPlot.beginPath();
+            ctxPlot.arc(curX, curY, 3.5, 0, Math.PI * 2);
+            ctxPlot.fill();
+
+            ctxPlot.fillStyle = '#0f172a';
+            ctxPlot.font = 'bold 11px monospace';
+            ctxPlot.textAlign = 'left';
+            ctxPlot.fillText(` ${lastPt.piEst.toFixed(4)}`, curX + 5, curY - 2);
+          }
+        }
+
+        ctxPlot.restore();
+      }
+
+      function animationLoop(timestamp) {
+        state.framesCount++;
+        if (timestamp - state.fpsLastTime >= 1000) {
+          state.fps = Math.round((state.framesCount * 1000) / (timestamp - state.fpsLastTime));
+          state.framesCount = 0;
+          state.fpsLastTime = timestamp;
+          dom.sysStatus.textContent = `System: ${state.isRunning ? 'Active Simulation' : 'Paused'} | Performance: ${state.fps} FPS | ${state.batchSize} drops/frame`;
+        }
+
+        if (state.isRunning) {
+          dropNeedles(state.batchSize);
+        }
+
+        renderField();
+        renderPlot();
+
+        requestAnimationFrame(animationLoop);
+      }
+
+      function togglePlayPause() {
+        state.isRunning = !state.isRunning;
+        if (state.isRunning) {
+          dom.btnPlayPause.classList.remove('btn-primary');
+          dom.btnPlayPause.classList.add('btn-danger');
+          dom.btnPlayPause.textContent = 'Pause Simulation';
+        } else {
+          dom.btnPlayPause.classList.remove('btn-danger');
+          dom.btnPlayPause.classList.add('btn-primary');
+          dom.btnPlayPause.textContent = 'Resume Simulation';
+        }
+      }
+
+      function resetSimulation() {
+        state.isRunning = false;
+        state.N = 0;
+        state.C = 0;
+        state.history = [];
+        state.needleBuffer = [];
+        bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+        dom.btnPlayPause.classList.remove('btn-danger');
+        dom.btnPlayPause.classList.add('btn-primary');
+        dom.btnPlayPause.textContent = 'Start Simulation';
+
+        updateDashboard();
+        renderField();
+        renderPlot();
+      }
+
+      dom.btnPlayPause.addEventListener('click', togglePlayPause);
+      dom.btnReset.addEventListener('click', resetSimulation);
+
+      dom.btnStep1.addEventListener('click', () => {
+        if (state.isRunning) togglePlayPause();
+        dropNeedles(1);
+        renderField();
+        renderPlot();
+      });
+
+      dom.btnStep100.addEventListener('click', () => {
+        if (state.isRunning) togglePlayPause();
+        dropNeedles(100);
+        renderField();
+        renderPlot();
+      });
+
+      dom.btnStep10k.addEventListener('click', () => {
+        if (state.isRunning) togglePlayPause();
+        dropNeedles(10000);
+        renderField();
+        renderPlot();
+      });
+
+      dom.selectSpeed.addEventListener('change', (e) => {
+        state.batchSize = parseInt(e.target.value, 10);
+      });
+
+      dom.rangeL.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        state.L = val;
+        dom.valL.textContent = `${val} px`;
+        updateDashboard();
+        renderField();
+        renderPlot();
+      });
+
+      dom.rangeD.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        state.D = val;
+        dom.valD.textContent = `${val} px`;
+        updateDashboard();
+        renderField();
+        renderPlot();
+      });
+
+      dom.selectPlotScale.addEventListener('change', (e) => {
+        state.plotScale = e.target.value;
+        renderPlot();
+      });
+
+      dom.selectDisplayMode.addEventListener('change', (e) => {
+        state.displayMode = e.target.value;
+        if (state.displayMode !== 'cumulative') {
+          bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+        }
+        renderField();
+      });
+
+      resizeCanvases();
+      updateDashboard();
+      requestAnimationFrame(animationLoop);
+
+    })();
+  </script>
+</body>
+</html>
