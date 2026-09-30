@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forensic Financial &amp; Quant Stock Market Benford Audit Simulator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <h1>Forensic Financial &amp; Quantitative Market Benford Audit Simulator</h1>
+    <p>
+        Application of Benford's Law (First-Digit Analysis) to Corporate Financial Accounting &amp; Quantitative Stock Market Data (Historical Multi-Year Trading Volumes, Prices, and HFT Microstructure Anomaly / Spoofing Detection).
+    </p>
+
+    <hr>
+
+    <h2>1. Dataset Controls &amp; Quant Simulation Selectors</h2>
+    <p>Select a corporate ledger or quantitative market dataset to run the statistical audit engine:</p>
+    
+    <div style="margin-bottom: 8px;">
+        <strong>Corporate Accounting Datasets:</strong><br>
+        <button id="btn-clean" onclick="loadDataset('clean')">Load Clean Financial Ledger (Authentic)</button>
+        <button id="btn-manipulated" onclick="loadDataset('manipulated')">Load Manipulated Balance Sheet (Fraud / Window-Dressed)</button>
+    </div>
+
+    <div style="margin-bottom: 8px;">
+        <strong>Quantitative Finance &amp; Stock Market Datasets:</strong><br>
+        <button id="btn-stock-market" onclick="loadDataset('stock_market')">Load Historic Stock Market Data (Quant Volume &amp; Price Series)</button>
+        <button id="btn-quant-spoofing" onclick="loadDataset('quant_spoofing')">Load HFT Spoofing &amp; Wash-Trading Anomaly (Quant Microstructure Fraud)</button>
+    </div>
+
+    <div>
+        <button id="btn-regenerate" onclick="regenerateCurrentDataset()">Regenerate Active Dataset</button>
+    </div>
+
+    <hr>
+
+    <h2>2. Audit Summary &amp; Risk Flag Panel</h2>
+    <table border="1" cellpadding="6" cellspacing="0" id="audit-summary-table">
+        <tbody>
+            <tr>
+                <td><strong>Dataset Type:</strong></td>
+                <td id="stat-dataset-name">None Loaded</td>
+                <td><strong>Total Sample Count (N):</strong></td>
+                <td id="stat-sample-count">0</td>
+            </tr>
+            <tr>
+                <td><strong>Mean Absolute Deviation (MAD):</strong></td>
+                <td id="stat-mad-score">-</td>
+                <td><strong>Nigrini (2012) Conformity:</strong></td>
+                <td id="stat-nigrini-status">-</td>
+            </tr>
+            <tr>
+                <td><strong>Chi-Square (&chi;&sup2;) Statistic:</strong></td>
+                <td id="stat-chisq-score">-</td>
+                <td><strong>Critical Cut-off (&alpha; = 0.05, df = 8):</strong></td>
+                <td>15.51</td>
+            </tr>
+            <tr>
+                <td><strong>Chi-Square Test Result:</strong></td>
+                <td id="stat-chisq-result">-</td>
+                <td><strong>Final Audit Verdict:</strong></td>
+                <td id="stat-final-verdict"><strong>-</strong></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <hr>
+
+    <h2>3. Leading Digit Distribution (Theoretical vs. Observed)</h2>
+    <div style="max-width: 850px;">
+        <canvas id="benfordChart" width="800" height="400"></canvas>
+    </div>
+
+    <hr>
+
+    <h2>4. Statistical Breakdown by Digit</h2>
+    <table border="1" cellpadding="5" cellspacing="0" id="digit-breakdown-table">
+        <thead>
+            <tr>
+                <th>Digit (d)</th>
+                <th>Observed Count (O<sub>d</sub>)</th>
+                <th>Observed Proportion (%)</th>
+                <th>Benford Theoretical (%)</th>
+                <th>Absolute Deviation |P<sub>obs</sub> - P<sub>exp</sub>|</th>
+                <th>&chi;&sup2; Component ((O - E)&sup2; / E)</th>
+            </tr>
+        </thead>
+        <tbody id="digit-breakdown-body">
+        </tbody>
+    </table>
+
+    <hr>
+
+    <h2>5. Data Record Sample (First 20 of 1,000 Entries)</h2>
+    <table border="1" cellpadding="5" cellspacing="0" id="ledger-sample-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Record / Identifier</th>
+                <th>Asset / Account Category</th>
+                <th>Metric / Amount ($ / Shares)</th>
+                <th>Extracted First Digit</th>
+            </tr>
+        </thead>
+        <tbody id="ledger-sample-body">
+        </tbody>
+    </table>
+
+    <hr>
+
+    <h2>6. Audit Methodology Reference</h2>
+    <p>
+        Theoretical First-Digit Distribution follows P(d) = log<sub>10</sub>(1 + 1/d). Complete scale-invariance and Weyl's equidistribution derivations are documented in the companion LaTeX Monograph (benford_scale_invariance.tex).
+    </p>
+
+    <h3>6.1 Theoretical Benford Values (Base-10 Logarithms)</h3>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Digit (d)</th>
+                <th>Exact Logarithmic Formula</th>
+                <th>Log<sub>10</sub> Fraction</th>
+                <th>Theoretical Probability P(d)</th>
+                <th>Cumulative Probability &sum; P(k)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td><strong>1</strong></td><td>log<sub>10</sub>(1 + 1/1)</td><td>log<sub>10</sub>(2.000)</td><td>0.30103 (30.10%)</td><td>30.10%</td></tr>
+            <tr><td><strong>2</strong></td><td>log<sub>10</sub>(1 + 1/2)</td><td>log<sub>10</sub>(1.500)</td><td>0.17609 (17.61%)</td><td>47.71%</td></tr>
+            <tr><td><strong>3</strong></td><td>log<sub>10</sub>(1 + 1/3)</td><td>log<sub>10</sub>(1.333)</td><td>0.12494 (12.49%)</td><td>60.21%</td></tr>
+            <tr><td><strong>4</strong></td><td>log<sub>10</sub>(1 + 1/4)</td><td>log<sub>10</sub>(1.250)</td><td>0.09691 (9.69%)</td><td>69.90%</td></tr>
+            <tr><td><strong>5</strong></td><td>log<sub>10</sub>(1 + 1/5)</td><td>log<sub>10</sub>(1.200)</td><td>0.07918 (7.92%)</td><td>77.82%</td></tr>
+            <tr><td><strong>6</strong></td><td>log<sub>10</sub>(1 + 1/6)</td><td>log<sub>10</sub>(1.167)</td><td>0.06695 (6.69%)</td><td>84.51%</td></tr>
+            <tr><td><strong>7</strong></td><td>log<sub>10</sub>(1 + 1/7)</td><td>log<sub>10</sub>(1.143)</td><td>0.05799 (5.80%)</td><td>90.31%</td></tr>
+            <tr><td><strong>8</strong></td><td>log<sub>10</sub>(1 + 1/8)</td><td>log<sub>10</sub>(1.125)</td><td>0.05115 (5.12%)</td><td>95.42%</td></tr>
+            <tr><td><strong>9</strong></td><td>log<sub>10</sub>(1 + 1/9)</td><td>log<sub>10</sub>(1.111)</td><td>0.04576 (4.58%)</td><td>100.00%</td></tr>
+        </tbody>
+    </table>
+
+    <h3>6.2 Mean Absolute Deviation (MAD) &amp; Nigrini (2012) Audit Standards</h3>
+    <p>
+        <code>MAD = (1 / 9) &middot; &sum;<sub>d=1</sub><sup>9</sup> |P<sub>obs</sub>(d) - P<sub>exp</sub>(d)|</code>
+    </p>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>MAD Range (First-Digit)</th>
+                <th>Nigrini (2012) Audit Conformity</th>
+                <th>Forensic Risk Assessment</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td><code>0.0000 to 0.0060</code></td><td>Close Conformity</td><td>Low Risk (Natural / Unmanipulated Ledger)</td></tr>
+            <tr><td><code>0.0060 to 0.0120</code></td><td>Acceptable Conformity</td><td>Moderate / Normal Operational Ledger</td></tr>
+            <tr><td><code>0.0120 to 0.0150</code></td><td>Marginally Acceptable Conformity</td><td>Elevated Risk (Secondary Audit Recommended)</td></tr>
+            <tr><td><code>&gt; 0.0150</code></td><td>Nonconformity</td><td>High Anomaly Flag (High Risk of Manipulation / Fraud)</td></tr>
+        </tbody>
+    </table>
+
+    <h3>6.3 Chi-Square (&chi;&sup2;) Goodness-of-Fit Hypothesis Test</h3>
+    <p>
+        <code>&chi;&sup2; = &sum;<sub>d=1</sub><sup>9</sup> [ (O<sub>d</sub> - E<sub>d</sub>)<sup>2</sup> / E<sub>d</sub> ]</code> where <code>E<sub>d</sub> = N &middot; log<sub>10</sub>(1 + 1/d)</code>. Critical cut-off at &alpha; = 0.05, df = 8 is <strong>15.51</strong>.
+    </p>
+
+    <hr>
+
+    <h2>7. Application of Benford's Law in Quantitative Finance &amp; Trading</h2>
+    <ul>
+        <li>
+            <strong>Historical Stock Market &amp; Multi-Year Equities:</strong>
+            Stock prices and daily trading volume series follow continuous Geometric Brownian Motion (GBM) with stochastic volatility:
+            <code>dS<sub>t</sub> = &mu; S<sub>t</sub> dt + &sigma; S<sub>t</sub> dW<sub>t</sub></code>.
+            Because financial returns and multiplicative liquidity compounding span multiple orders of magnitude across 1,000+ trading sessions, authentic stock market volume and dollar-flow series naturally conform to Benford's Law with high statistical precision (MAD &le; 0.006).
+        </li>
+        <li>
+            <strong>HFT Spoofing, Layering, and Wash-Trading Anomaly Detection:</strong>
+            Predatory algorithms, market manipulators, and unauthorized dark-pool wash trades inject synthetic block orders clustered at round or artificial threshold sizes (e.g., repetitive 5,000, 7,500, or 9,900 share limit orders). Real-time quant surveillance models deploy Benford's Law to flag high-frequency order-book distortion and spoofing before execution.
+        </li>
+        <li>
+            <strong>Quantitative Factor Investing &amp; Earnings Quality Alpha:</strong>
+            Multi-factor hedge funds screen thousands of balance sheets and cash flow statements using Benford MAD tests as an automated forensic filter. Equities failing Benford tests exhibit elevated restatement risk, earnings management, and lower forward Sharpe ratios, allowing quant models to hedge or short non-conforming tickers.
+        </li>
+    </ul>
+
+    <script>
+        const SAMPLE_SIZE = 1000;
+        const CHI_SQUARE_CRITICAL = 15.51;
+        const ACCOUNT_CATEGORIES = ['Total Assets', 'Liabilities', 'Revenue', 'Equity'];
+        const STOCK_TICKERS = ['SPY (S&P 500)', 'QQQ (Nasdaq 100)', 'AAPL', 'NVDA', 'MSFT', 'AMZN', 'TSLA', 'GOOGL'];
+        
+        let currentDatasetType = 'clean';
+        let currentLedgerData = [];
+        let chartInstance = null;
+
+        const BENFORD_THEORETICAL = {};
+        for (let d = 1; d <= 9; d++) {
+            BENFORD_THEORETICAL[d] = Math.log10(1 + (1 / d));
+        }
+
+        function extractFirstDigit(amount) {
+            const val = Math.abs(amount);
+            if (val === 0 || isNaN(val)) return null;
+            const str = val.toString().replace(/^0+/, '').replace('.', '');
+            for (let i = 0; i < str.length; i++) {
+                const ch = str[i];
+                if (ch >= '1' && ch <= '9') {
+                    return parseInt(ch, 10);
+                }
+            }
+            return null;
+        }
+
+        function randomNormal() {
+            const u1 = Math.random() || 0.0001;
+            const u2 = Math.random() || 0.0001;
+            return Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+        }
+
+        function generateAuthenticDataset(count = SAMPLE_SIZE) {
+            const data = [];
+            for (let i = 1; i <= count; i++) {
+                const category = ACCOUNT_CATEGORIES[Math.floor(Math.random() * ACCOUNT_CATEGORIES.length)];
+                const z = randomNormal();
+                
+                const mu = 10.5;
+                const sigma = 2.4;
+                const rawAmount = Math.exp(mu + sigma * z);
+                
+                const compounding = Math.pow(1 + (Math.random() * 0.15), Math.floor(Math.random() * 8));
+                const amount = parseFloat((rawAmount * compounding).toFixed(2));
+                const firstDigit = extractFirstDigit(amount);
+
+                data.push({
+                    id: 'TX-LEG-' + (100000 + i),
+                    category: category,
+                    amount: amount,
+                    firstDigit: firstDigit
+                });
+            }
+            return data;
+        }
+
+        function generateManipulatedDataset(count = SAMPLE_SIZE) {
+            const data = [];
+            const thresholdBases = [4900, 4950, 4980, 7850, 7900, 8800, 9400, 9750, 9900, 6500, 6800, 5400];
+
+            for (let i = 1; i <= count; i++) {
+                const category = ACCOUNT_CATEGORIES[Math.floor(Math.random() * ACCOUNT_CATEGORIES.length)];
+                const fraudType = Math.random();
+                let amount = 0;
+
+                if (fraudType < 0.45) {
+                    const base = thresholdBases[Math.floor(Math.random() * thresholdBases.length)];
+                    const multiplier = Math.pow(10, Math.floor(Math.random() * 3));
+                    const variance = (Math.random() * 95) - 45;
+                    amount = parseFloat(((base + variance) * multiplier).toFixed(2));
+                } else if (fraudType < 0.75) {
+                    const chosenDigit = Math.floor(Math.random() * 9) + 1;
+                    const magnitude = Math.pow(10, Math.floor(Math.random() * 4) + 2);
+                    const remainder = Math.random() * magnitude;
+                    amount = parseFloat((chosenDigit * magnitude + remainder).toFixed(2));
+                } else {
+                    const biasedDigits = [5, 6, 7, 7, 8, 8, 9];
+                    const chosenDigit = biasedDigits[Math.floor(Math.random() * biasedDigits.length)];
+                    const magnitude = Math.pow(10, Math.floor(Math.random() * 3) + 3);
+                    amount = parseFloat((chosenDigit * magnitude).toFixed(2));
+                }
+
+                if (amount <= 0) amount = 100.00;
+                const firstDigit = extractFirstDigit(amount);
+
+                data.push({
+                    id: 'TX-FRD-' + (200000 + i),
+                    category: category,
+                    amount: amount,
+                    firstDigit: firstDigit
+                });
+            }
+            return data;
+        }
+
+        function generateStockMarketDataset(count = SAMPLE_SIZE) {
+            const data = [];
+            const startDate = new Date(2022, 0, 3);
+            
+            let currentDate = new Date(startDate);
+            let currentPrices = {
+                'SPY (S&P 500)': 380.0,
+                'QQQ (Nasdaq 100)': 290.0,
+                'AAPL': 140.0,
+                'NVDA': 160.0,
+                'MSFT': 260.0,
+                'AMZN': 110.0,
+                'TSLA': 220.0,
+                'GOOGL': 105.0
+            };
+
+            for (let i = 1; i <= count; i++) {
+                const ticker = STOCK_TICKERS[i % STOCK_TICKERS.length];
+                
+                if (i % STOCK_TICKERS.length === 0) {
+                    currentDate.setDate(currentDate.getDate() + 1);
+                    if (currentDate.getDay() === 6) currentDate.setDate(currentDate.getDate() + 2);
+                    if (currentDate.getDay() === 0) currentDate.setDate(currentDate.getDate() + 1);
+                }
+
+                const dt = 1 / 252;
+                const mu = 0.12;
+                const sigma = 0.28;
+                const zPrice = randomNormal();
+                const returnFactor = Math.exp((mu - 0.5 * sigma * sigma) * dt + sigma * Math.sqrt(dt) * zPrice);
+                currentPrices[ticker] = currentPrices[ticker] * returnFactor;
+                
+                const baseLogVol = 15.5;
+                const zVol = randomNormal();
+                const volumeShares = Math.floor(Math.exp(baseLogVol + 0.85 * zVol));
+                
+                const dollarVolume = volumeShares * currentPrices[ticker];
+
+                const isVolumeMetric = (i % 2 === 0);
+                const metricValue = isVolumeMetric ? volumeShares : parseFloat(dollarVolume.toFixed(2));
+                const firstDigit = extractFirstDigit(metricValue);
+
+                const dateStr = currentDate.toISOString().split('T')[0];
+                data.push({
+                    id: `${dateStr} | ${ticker}`,
+                    category: isVolumeMetric ? 'Daily Share Volume' : 'Dollar Volume Traded',
+                    amount: metricValue,
+                    firstDigit: firstDigit
+                });
+            }
+            return data;
+        }
+
+        function generateQuantSpoofingDataset(count = SAMPLE_SIZE) {
+            const data = [];
+            const spoofBlockSizes = [5000, 5000, 7500, 7500, 8000, 8888, 9000, 9500, 9900, 5500, 6660];
+            const spoofTickers = ['HFT-SPOOF-FEED (SPY)', 'HFT-SPOOF-FEED (NVDA)', 'HFT-SPOOF-FEED (BTC)', 'HFT-SPOOF-FEED (QQQ)'];
+
+            for (let i = 1; i <= count; i++) {
+                const ticker = spoofTickers[Math.floor(Math.random() * spoofTickers.length)];
+                const isSpoofTrade = Math.random() < 0.60;
+                let amount = 0;
+                let category = '';
+
+                if (isSpoofTrade) {
+                    const baseBlock = spoofBlockSizes[Math.floor(Math.random() * spoofBlockSizes.length)];
+                    const multiplier = Math.pow(10, Math.floor(Math.random() * 2));
+                    const jitter = Math.floor(Math.random() * 20) - 10;
+                    amount = (baseBlock + jitter) * multiplier;
+                    category = 'Spoofed / Layered Order Block';
+                } else {
+                    const digit = Math.floor(Math.random() * 9) + 1;
+                    const magnitude = Math.pow(10, Math.floor(Math.random() * 3) + 3);
+                    amount = (digit * magnitude) + Math.floor(Math.random() * 100);
+                    category = 'Wash-Trade Print';
+                }
+
+                if (amount <= 0) amount = 5000;
+                const firstDigit = extractFirstDigit(amount);
+
+                data.push({
+                    id: `HFT-ORD-${1000000 + i}`,
+                    category: category,
+                    amount: amount,
+                    firstDigit: firstDigit
+                });
+            }
+            return data;
+        }
+
+        function performAuditAnalysis(ledger) {
+            const counts = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0};
+            let validCount = 0;
+
+            ledger.forEach(entry => {
+                if (entry.firstDigit >= 1 && entry.firstDigit <= 9) {
+                    counts[entry.firstDigit]++;
+                    validCount++;
+                }
+            });
+
+            const observedProps = {};
+            const expectedProps = {};
+            const expectedCounts = {};
+            const deviations = {};
+            const chiSquareComponents = {};
+
+            let sumAbsoluteDeviation = 0;
+            let totalChiSquare = 0;
+
+            for (let d = 1; d <= 9; d++) {
+                const obsCount = counts[d];
+                const obsProp = validCount > 0 ? (obsCount / validCount) : 0;
+                const expProp = BENFORD_THEORETICAL[d];
+                const expCount = validCount * expProp;
+
+                const absDev = Math.abs(obsProp - expProp);
+                sumAbsoluteDeviation += absDev;
+
+                const chiComp = expCount > 0 ? (Math.pow(obsCount - expCount, 2) / expCount) : 0;
+                totalChiSquare += chiComp;
+
+                observedProps[d] = obsProp;
+                expectedProps[d] = expProp;
+                expectedCounts[d] = expCount;
+                deviations[d] = absDev;
+                chiSquareComponents[d] = chiComp;
+            }
+
+            const mad = sumAbsoluteDeviation / 9;
+
+            let nigriniCategory = '';
+            let nigriniConformityRisk = '';
+            if (mad <= 0.006) {
+                nigriniCategory = 'Close Conformity';
+                nigriniConformityRisk = 'Low Fraud / Normal Market Dynamics';
+            } else if (mad <= 0.012) {
+                nigriniCategory = 'Acceptable Conformity';
+                nigriniConformityRisk = 'Acceptable / Moderate Risk';
+            } else if (mad <= 0.015) {
+                nigriniCategory = 'Marginally Acceptable Conformity';
+                nigriniConformityRisk = 'Elevated Risk / Further Surveillance';
+            } else {
+                nigriniCategory = 'Nonconformity';
+                nigriniConformityRisk = 'High Anomaly / Manipulation Flag';
+            }
+
+            const isChiSquareExceeded = totalChiSquare > CHI_SQUARE_CRITICAL;
+            const chiSquareResultText = isChiSquareExceeded 
+                ? 'Statistically Significant Anomaly (p < 0.05, Failed Goodness-of-Fit)'
+                : 'Conforms to Expected Distribution (p >= 0.05, Passed Goodness-of-Fit)';
+
+            let isFlagged = (mad > 0.012) || isChiSquareExceeded;
+            let finalVerdict = isFlagged ? 'AUDIT FLAGGED (Potential Manipulation Detected)' : 'PASS (Conforms to Benford)';
+
+            return {
+                validCount: validCount,
+                counts: counts,
+                observedProps: observedProps,
+                expectedProps: expectedProps,
+                expectedCounts: expectedCounts,
+                deviations: deviations,
+                chiSquareComponents: chiSquareComponents,
+                mad: mad,
+                nigriniCategory: nigriniCategory,
+                nigriniConformityRisk: nigriniConformityRisk,
+                totalChiSquare: totalChiSquare,
+                isChiSquareExceeded: isChiSquareExceeded,
+                chiSquareResultText: chiSquareResultText,
+                isFlagged: isFlagged,
+                finalVerdict: finalVerdict
+            };
+        }
+
+        function updateUI(datasetType, ledger, stats) {
+            let datasetLabel = '';
+            if (datasetType === 'clean') {
+                datasetLabel = 'Authentic Corporate Ledger (Clean Multiplicative Growth)';
+            } else if (datasetType === 'manipulated') {
+                datasetLabel = 'Window-Dressed / Manipulated Balance Sheet (Accounting Fraud)';
+            } else if (datasetType === 'stock_market') {
+                datasetLabel = 'Historic Stock Market Multi-Year Series (Prices & Daily Volumes)';
+            } else if (datasetType === 'quant_spoofing') {
+                datasetLabel = 'HFT Spoofing & Layering Microstructure Anomaly (Market Manipulation)';
+            }
+
+            document.getElementById('stat-dataset-name').textContent = datasetLabel;
+            document.getElementById('stat-sample-count').textContent = stats.validCount.toLocaleString();
+            document.getElementById('stat-mad-score').textContent = stats.mad.toFixed(5);
+            document.getElementById('stat-nigrini-status').textContent = `${stats.nigriniCategory} (${stats.nigriniConformityRisk})`;
+            document.getElementById('stat-chisq-score').textContent = stats.totalChiSquare.toFixed(3);
+            document.getElementById('stat-chisq-result').textContent = stats.chiSquareResultText;
+            
+            const verdictEl = document.getElementById('stat-final-verdict');
+            verdictEl.textContent = stats.finalVerdict;
+
+            const tbodyBreakdown = document.getElementById('digit-breakdown-body');
+            tbodyBreakdown.innerHTML = '';
+            for (let d = 1; d <= 9; d++) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${d}</strong></td>
+                    <td>${stats.counts[d]}</td>
+                    <td>${(stats.observedProps[d] * 100).toFixed(2)}%</td>
+                    <td>${(stats.expectedProps[d] * 100).toFixed(2)}%</td>
+                    <td>${stats.deviations[d].toFixed(4)}</td>
+                    <td>${stats.chiSquareComponents[d].toFixed(3)}</td>
+                `;
+                tbodyBreakdown.appendChild(tr);
+            }
+
+            const tbodyLedger = document.getElementById('ledger-sample-body');
+            tbodyLedger.innerHTML = '';
+            const sampleRows = ledger.slice(0, 20);
+            sampleRows.forEach((row, idx) => {
+                const tr = document.createElement('tr');
+                const formattedAmount = typeof row.amount === 'number' 
+                    ? row.amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+                    : row.amount;
+                tr.innerHTML = `
+                    <td>${idx + 1}</td>
+                    <td>${row.id}</td>
+                    <td>${row.category}</td>
+                    <td>${formattedAmount}</td>
+                    <td><strong>${row.firstDigit}</strong></td>
+                `;
+                tbodyLedger.appendChild(tr);
+            });
+
+            renderChart(stats, datasetLabel);
+        }
+
+        function renderChart(stats, datasetLabel) {
+            const labels = ['Digit 1', 'Digit 2', 'Digit 3', 'Digit 4', 'Digit 5', 'Digit 6', 'Digit 7', 'Digit 8', 'Digit 9'];
+            const actualPercentages = [];
+            const theoreticalPercentages = [];
+
+            for (let d = 1; d <= 9; d++) {
+                actualPercentages.push(parseFloat((stats.observedProps[d] * 100).toFixed(2)));
+                theoreticalPercentages.push(parseFloat((stats.expectedProps[d] * 100).toFixed(2)));
+            }
+
+            const ctx = document.getElementById('benfordChart').getContext('2d');
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            type: 'bar',
+                            label: 'Actual Observed Frequency (%)',
+                            data: actualPercentages,
+                            backgroundColor: stats.isFlagged ? 'rgba(215, 48, 39, 0.7)' : 'rgba(49, 130, 189, 0.7)',
+                            borderColor: stats.isFlagged ? 'rgba(178, 24, 43, 1)' : 'rgba(8, 81, 156, 1)',
+                            borderWidth: 1,
+                            order: 2
+                        },
+                        {
+                            type: 'line',
+                            label: "Theoretical Benford's Law (%)",
+                            data: theoreticalPercentages,
+                            borderColor: 'rgba(0, 0, 0, 0.9)',
+                            borderWidth: 2.5,
+                            borderDash: [5, 5],
+                            pointBackgroundColor: 'rgba(0, 0, 0, 1)',
+                            pointRadius: 4,
+                            fill: false,
+                            tension: 0.25,
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Leading-Digit Frequency (%)'
+                            },
+                            suggestedMax: 35
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Leading Digit (d)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `Benford Distribution: ${datasetLabel} (N = ${stats.validCount})`
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.parsed.y}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function loadDataset(type) {
+            currentDatasetType = type;
+            if (type === 'clean') {
+                currentLedgerData = generateAuthenticDataset(SAMPLE_SIZE);
+            } else if (type === 'manipulated') {
+                currentLedgerData = generateManipulatedDataset(SAMPLE_SIZE);
+            } else if (type === 'stock_market') {
+                currentLedgerData = generateStockMarketDataset(SAMPLE_SIZE);
+            } else if (type === 'quant_spoofing') {
+                currentLedgerData = generateQuantSpoofingDataset(SAMPLE_SIZE);
+            }
+            const stats = performAuditAnalysis(currentLedgerData);
+            updateUI(currentDatasetType, currentLedgerData, stats);
+        }
+
+        function regenerateCurrentDataset() {
+            loadDataset(currentDatasetType);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadDataset('stock_market');
+        });
+    </script>
+</body>
+</html>
