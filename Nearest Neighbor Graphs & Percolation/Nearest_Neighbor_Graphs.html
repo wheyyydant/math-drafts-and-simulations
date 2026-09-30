@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spatial k-NN Percolation Simulator</title>
+    <!-- MathJax for rendering LaTeX mathematical equations -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+    </script>
+</head>
+<body>
+    <h1>Spatial k-Nearest Neighbor (k-NN) Percolation Simulator</h1>
+    <p>
+        Interactive simulation of spatial k-NN lattices and percolation phase transitions in 2D Euclidean metric space.
+    </p>
+
+    <!-- Formal Mathematical Theorem Block -->
+    <div style="border: 1px solid #333; background-color: #f9f9f9; padding: 10px 14px; margin: 12px 0;">
+        <b>Topological Invariant: Cycle Length Bound (\(\ell \le 2\))</b>
+        <p style="margin: 6px 0 0 0; font-size: 14px; line-height: 1.5;">
+            By strict triangle inequality in \(\mathbb{R}^2\), for any sequence of directed 1-NN edges \(v_1 \to v_2 \to \dots \to v_\ell \to v_1\),
+            $$d(v_1, v_2) > d(v_2, v_3) > \dots > d(v_\ell, v_1) > d(v_1, v_2)$$
+            yields a strict contradiction. Hence, maximum directed cycle length \(\ell_{\max} = 2\).
+        </p>
+    </div>
+
+    <!-- Algorithmic & Simulation Controls -->
+    <fieldset>
+        <legend><b>Simulation &amp; Algorithmic Controls</b></legend>
+        <div style="margin-bottom: 8px;">
+            <label for="nodeCountRange"><b>Node Count (N):</b> </label>
+            <input type="range" id="nodeCountRange" min="10" max="600" step="10" value="100">
+            <span id="nodeCountVal">100</span>
+            &nbsp;|&nbsp;
+            <b>Presets:</b>
+            <button type="button" id="preset50">N = 50</button>
+            <button type="button" id="preset100">N = 100</button>
+            <button type="button" id="preset200">N = 200</button>
+            <button type="button" id="preset500">N = 500</button>
+        </div>
+
+        <div style="margin-bottom: 8px;">
+            <label for="kDegreeRange"><b>Degree Parameter (k):</b> </label>
+            <input type="range" id="kDegreeRange" min="1" max="10" step="1" value="1">
+            <b id="kDegreeVal">1</b>
+            &nbsp;
+            <button type="button" id="btnSweepK">Auto-Sweep k (1 &rarr; 10)</button>
+        </div>
+
+        <div style="margin-bottom: 8px;">
+            <label for="pointDistribution"><b>Spatial Distribution:</b> </label>
+            <select id="pointDistribution">
+                <option value="uniform" selected>Uniform Random [0, 1]²</option>
+                <option value="gaussian">Gaussian Mixture Clusters</option>
+                <option value="grid_jitter">Grid + Jitter Perturbation</option>
+                <option value="annulus">Annulus / Geometric Ring</option>
+            </select>
+            &nbsp;
+            <button type="button" id="btnRegenerate"><b>Re-generate Spatial Points</b></button>
+            <button type="button" id="btnClearPoints">Clear Points</button>
+        </div>
+
+        <div>
+            <label><input type="checkbox" id="chkShowArrows" checked> Directed Arrowheads</label>
+            &nbsp;
+            <label><input type="checkbox" id="chkHighlight2Cycles" checked> Highlight 2-Cycles (Mutual NNs)</label>
+            &nbsp;
+            <label><input type="checkbox" id="chkColorClusters" checked> Color Connected Components</label>
+            &nbsp;
+            <label><input type="checkbox" id="chkHighlightGiant" checked> Highlight Giant Component</label>
+            &nbsp;
+            <label><input type="checkbox" id="chkShowCoordinates"> Coordinates &amp; Labels</label>
+        </div>
+    </fieldset>
+
+    <br>
+
+    <!-- Layout: Canvas Visualization and Analytics Panel -->
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start;">
+        
+        <!-- Canvas Viewport -->
+        <div>
+            <canvas id="simCanvas" width="700" height="700" style="border: 2px solid #000; background-color: #fafafa; cursor: crosshair; display: block;"></canvas>
+            <div style="margin-top: 4px; font-size: 13px;">
+                <i>Tip: Click anywhere on the canvas to add a custom node. Click and drag existing nodes to observe real-time topological rewiring.</i>
+            </div>
+        </div>
+
+        <!-- Mathematical & Analytics Dashboard -->
+        <div style="min-width: 380px; max-width: 480px;">
+            
+            <fieldset>
+                <legend><b>Percolation Phase &amp; Order Parameter</b></legend>
+                <div style="padding: 6px; margin-bottom: 8px; border: 1px solid #666; background-color: #f0f0f0;">
+                    <b>Percolation State:</b> <span id="phaseIndicator" style="font-weight: bold; font-size: 15px;">Disconnected Lattices</span>
+                </div>
+                <table border="1" cellpadding="5" cellspacing="0" style="width: 100%; border-collapse: collapse; font-family: monospace;">
+                    <tr>
+                        <td><b>Giant Component Ratio (S<sub>g</sub>)</b></td>
+                        <td><b id="statGiantRatio">0.000</b> (<span id="statGiantPercent">0.0%</span>)</td>
+                    </tr>
+                    <tr>
+                        <td><b>Giant Component Size (|C<sub>max</sub>|)</b></td>
+                        <td><span id="statGiantSize">0</span> / <span id="statTotalNodes">0</span> nodes</td>
+                    </tr>
+                    <tr>
+                        <td><b>Connected Components (#)</b></td>
+                        <td><span id="statComponentCount">0</span></td>
+                    </tr>
+                    <tr>
+                        <td><b>Average Component Size (&lang;S&rang;)</b></td>
+                        <td><span id="statAvgCompSize">0.00</span> nodes</td>
+                    </tr>
+                </table>
+            </fieldset>
+
+            <br>
+
+            <fieldset>
+                <legend><b>Geometric &amp; Topological Invariants</b></legend>
+                <table border="1" cellpadding="5" cellspacing="0" style="width: 100%; border-collapse: collapse; font-family: monospace;">
+                    <tr>
+                        <td><b>Total Nodes (N)</b></td>
+                        <td><span id="statN">100</span></td>
+                    </tr>
+                    <tr>
+                        <td><b>Degree Parameter (k)</b></td>
+                        <td><span id="statK">1</span></td>
+                    </tr>
+                    <tr>
+                        <td><b>Total Directed Edges (|E|)</b></td>
+                        <td><span id="statEdges">0</span></td>
+                    </tr>
+                    <tr>
+                        <td><b>Mutual 2-Cycles Count</b></td>
+                        <td><b id="stat2Cycles" style="color: #b00;">0</b></td>
+                    </tr>
+                    <tr>
+                        <td><b>Reciprocity / 2-Cycle Ratio</b></td>
+                        <td><span id="statReciprocity">0.0%</span></td>
+                    </tr>
+                    <tr>
+                        <td><b>Max Node In-Degree (d<sub>in</sub><sup>max</sup>)</b></td>
+                        <td><span id="statMaxInDegree">0</span></td>
+                    </tr>
+                    <tr>
+                        <td><b>Average In-Degree (&lang;d<sub>in</sub>&rang;)</b></td>
+                        <td><span id="statAvgInDegree">0.00</span></td>
+                    </tr>
+                    <tr>
+                        <td><b>Mean Euclidean NN Distance</b></td>
+                        <td><span id="statMeanDistance">0.0000</span></td>
+                    </tr>
+                </table>
+            </fieldset>
+
+            <br>
+
+            <!-- Node Inspector -->
+            <fieldset>
+                <legend><b>Real-time Node Inspector</b></legend>
+                <div id="inspectorInfo" style="font-family: monospace; font-size: 13px;">
+                    <i>Hover over any node in the canvas to inspect its Euclidean coordinates, nearest neighbors, in/out degrees, and cluster assignment.</i>
+                </div>
+            </fieldset>
+        </div>
+    </div>
+
+    <br>
+
+    <!-- Real-Time Phase Transition Curve (Spacious High-Resolution Plot) -->
+    <fieldset style="margin-top: 15px; padding: 12px; background-color: #fcfcfc;">
+        <legend style="font-size: 15px; font-weight: bold;"><b>Real-Time Percolation Phase Transition Curve: Giant Component Ratio S<sub>g</sub>(k)</b></legend>
+        <canvas id="curveCanvas" width="1180" height="340" style="border: 2px solid #333; background-color: #ffffff; display: block; max-width: 100%; height: auto; cursor: pointer;"></canvas>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 13px;">
+            <div>
+                <i>Plot displays giant component fraction S<sub>g</sub> &isin; [0, 1] as degree k varies from 1 to 10. Click anywhere along the curve to switch degree k.</i>
+            </div>
+            <div>
+                <b>Active Degree Parameter:</b> <span id="curveKLabel" style="font-weight: bold; color: #d92b2b; font-size: 14px;">k = 1</span>
+            </div>
+        </div>
+    </fieldset>
+
+
+
+    <!-- Pure Native JavaScript Engine -->
+    <script>
+        (function() {
+            "use strict";
+
+            // --- Simulation State ---
+            let N = 100;
+            let k = 1;
+            let points = []; // Array of { id, x, y } in [0, 1]
+            let pairwiseDistances = []; // 2D array [N][N]
+            let knnAdjacency = []; // Array of Array of neighbor indices for each node
+            let inDegrees = [];
+            let twoCycles = []; // Array of [min(i,j), max(i,j)]
+            let components = []; // Disjoint set roots or cluster IDs
+            let clusterSizes = {}; // clusterId -> size
+            let giantComponentId = -1;
+            let hoveredNodeIndex = -1;
+            let draggedNodeIndex = -1;
+            let isSweeping = false;
+            let sweepTimer = null;
+
+            // --- DOM Elements ---
+            const canvas = document.getElementById("simCanvas");
+            const ctx = canvas.getContext("2d");
+
+            const curveCanvas = document.getElementById("curveCanvas");
+            const curveCtx = curveCanvas.getContext("2d");
+            const curveKLabel = document.getElementById("curveKLabel");
+
+            const nodeCountRange = document.getElementById("nodeCountRange");
+            const nodeCountVal = document.getElementById("nodeCountVal");
+            const kDegreeRange = document.getElementById("kDegreeRange");
+            const kDegreeVal = document.getElementById("kDegreeVal");
+            const pointDistribution = document.getElementById("pointDistribution");
+            const btnRegenerate = document.getElementById("btnRegenerate");
+            const btnClearPoints = document.getElementById("btnClearPoints");
+            const btnSweepK = document.getElementById("btnSweepK");
+
+            let sortedCandidates = [];
+            let phaseCurveValues = new Array(10).fill(0);
+
+            const preset50 = document.getElementById("preset50");
+            const preset100 = document.getElementById("preset100");
+            const preset200 = document.getElementById("preset200");
+            const preset500 = document.getElementById("preset500");
+
+            const chkShowArrows = document.getElementById("chkShowArrows");
+            const chkHighlight2Cycles = document.getElementById("chkHighlight2Cycles");
+            const chkColorClusters = document.getElementById("chkColorClusters");
+            const chkHighlightGiant = document.getElementById("chkHighlightGiant");
+            const chkShowCoordinates = document.getElementById("chkShowCoordinates");
+
+            const phaseIndicator = document.getElementById("phaseIndicator");
+            const statGiantRatio = document.getElementById("statGiantRatio");
+            const statGiantPercent = document.getElementById("statGiantPercent");
+            const statGiantSize = document.getElementById("statGiantSize");
+            const statTotalNodes = document.getElementById("statTotalNodes");
+            const statComponentCount = document.getElementById("statComponentCount");
+            const statAvgCompSize = document.getElementById("statAvgCompSize");
+
+            const statN = document.getElementById("statN");
+            const statK = document.getElementById("statK");
+            const statEdges = document.getElementById("statEdges");
+            const stat2Cycles = document.getElementById("stat2Cycles");
+            const statReciprocity = document.getElementById("statReciprocity");
+            const statMaxInDegree = document.getElementById("statMaxInDegree");
+            const statAvgInDegree = document.getElementById("statAvgInDegree");
+            const statMeanDistance = document.getElementById("statMeanDistance");
+            const inspectorInfo = document.getElementById("inspectorInfo");
+
+            // --- Disjoint-Set (Union-Find) with Path Compression and Union by Rank ---
+            class UnionFind {
+                constructor(size) {
+                    this.parent = new Int32Array(size);
+                    this.rank = new Int32Array(size);
+                    this.size = new Int32Array(size);
+                    this.numComponents = size;
+                    for (let i = 0; i < size; i++) {
+                        this.parent[i] = i;
+                        this.rank[i] = 0;
+                        this.size[i] = 1;
+                    }
+                }
+
+                find(i) {
+                    let root = i;
+                    while (root !== this.parent[root]) {
+                        root = this.parent[root];
+                    }
+                    let curr = i;
+                    while (curr !== root) {
+                        let nxt = this.parent[curr];
+                        this.parent[curr] = root;
+                        curr = nxt;
+                    }
+                    return root;
+                }
+
+                union(i, j) {
+                    let rootI = this.find(i);
+                    let rootJ = this.find(j);
+                    if (rootI === rootJ) return false;
+
+                    if (this.rank[rootI] < this.rank[rootJ]) {
+                        this.parent[rootI] = rootJ;
+                        this.size[rootJ] += this.size[rootI];
+                    } else if (this.rank[rootI] > this.rank[rootJ]) {
+                        this.parent[rootJ] = rootI;
+                        this.size[rootI] += this.size[rootJ];
+                    } else {
+                        this.parent[rootJ] = rootI;
+                        this.size[rootI] += this.size[rootJ];
+                        this.rank[rootI]++;
+                    }
+                    this.numComponents--;
+                    return true;
+                }
+
+                getSize(i) {
+                    return this.size[this.find(i)];
+                }
+            }
+
+            // --- Spatial Point Generators ---
+            function generatePoints(count, type) {
+                const pts = [];
+                if (type === "uniform") {
+                    for (let i = 0; i < count; i++) {
+                        pts.push({
+                            id: i,
+                            x: Math.random() * 0.9 + 0.05,
+                            y: Math.random() * 0.9 + 0.05
+                        });
+                    }
+                } else if (type === "gaussian") {
+                    const numClusters = Math.max(3, Math.floor(Math.sqrt(count)));
+                    const centers = [];
+                    for (let c = 0; c < numClusters; c++) {
+                        centers.push({
+                            x: 0.15 + Math.random() * 0.7,
+                            y: 0.15 + Math.random() * 0.7,
+                            std: 0.04 + Math.random() * 0.06
+                        });
+                    }
+                    for (let i = 0; i < count; i++) {
+                        const center = centers[Math.floor(Math.random() * numClusters)];
+                        // Box-Muller transform
+                        const u1 = Math.max(1e-6, Math.random());
+                        const u2 = Math.random();
+                        const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+                        const z1 = Math.sqrt(-2.0 * Math.log(u1)) * Math.sin(2.0 * Math.PI * u2);
+                        let x = center.x + z0 * center.std;
+                        let y = center.y + z1 * center.std;
+                        x = Math.max(0.02, Math.min(0.98, x));
+                        y = Math.max(0.02, Math.min(0.98, y));
+                        pts.push({ id: i, x: x, y: y });
+                    }
+                } else if (type === "grid_jitter") {
+                    const side = Math.ceil(Math.sqrt(count));
+                    const step = 0.85 / side;
+                    let created = 0;
+                    for (let r = 0; r < side && created < count; r++) {
+                        for (let c = 0; c < side && created < count; c++) {
+                            const baseX = 0.075 + c * step;
+                            const baseY = 0.075 + r * step;
+                            const jx = (Math.random() - 0.5) * step * 0.8;
+                            const jy = (Math.random() - 0.5) * step * 0.8;
+                            pts.push({
+                                id: created,
+                                x: Math.max(0.02, Math.min(0.98, baseX + jx)),
+                                y: Math.max(0.02, Math.min(0.98, baseY + jy))
+                            });
+                            created++;
+                        }
+                    }
+                } else if (type === "annulus") {
+                    const centerX = 0.5;
+                    const centerY = 0.5;
+                    const rInner = 0.22;
+                    const rOuter = 0.42;
+                    for (let i = 0; i < count; i++) {
+                        const theta = Math.random() * 2 * Math.PI;
+                        const rad = Math.sqrt(Math.random() * (rOuter * rOuter - rInner * rInner) + rInner * rInner);
+                        pts.push({
+                            id: i,
+                            x: centerX + rad * Math.cos(theta),
+                            y: centerY + rad * Math.sin(theta)
+                        });
+                    }
+                }
+                return pts;
+            }
+
+            // --- Pairwise Euclidean Distance Matrix & k-NN Engine ---
+            function recomputeGraph() {
+                const totalNodes = points.length;
+                if (totalNodes === 0) {
+                    knnAdjacency = [];
+                    inDegrees = [];
+                    twoCycles = [];
+                    components = [];
+                    clusterSizes = {};
+                    giantComponentId = -1;
+                    updateDashboard();
+                    draw();
+                    return;
+                }
+
+                // 1. Calculate Pairwise Euclidean Distance Matrix d(i, j)
+                pairwiseDistances = new Array(totalNodes);
+                for (let i = 0; i < totalNodes; i++) {
+                    pairwiseDistances[i] = new Float64Array(totalNodes);
+                }
+
+                for (let i = 0; i < totalNodes; i++) {
+                    pairwiseDistances[i][i] = 0;
+                    for (let j = i + 1; j < totalNodes; j++) {
+                        const dx = points[i].x - points[j].x;
+                        const dy = points[i].y - points[j].y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        pairwiseDistances[i][j] = dist;
+                        pairwiseDistances[j][i] = dist;
+                    }
+                }
+
+                // 2. Find k-Nearest Neighbors for each node
+                const currentK = Math.min(k, totalNodes - 1);
+                knnAdjacency = new Array(totalNodes);
+                sortedCandidates = new Array(totalNodes);
+                inDegrees = new Array(totalNodes).fill(0);
+
+                let totalDistanceSum = 0;
+                let totalDistanceCount = 0;
+
+                for (let i = 0; i < totalNodes; i++) {
+                    // Create distance indexed list
+                    const candidates = [];
+                    for (let j = 0; j < totalNodes; j++) {
+                        if (i !== j) {
+                            candidates.push({ id: j, dist: pairwiseDistances[i][j] });
+                        }
+                    }
+                    // Sort ascending by Euclidean distance
+                    candidates.sort((a, b) => a.dist - b.dist);
+                    sortedCandidates[i] = candidates;
+                    
+                    const neighbors = [];
+                    for (let idx = 0; idx < currentK; idx++) {
+                        const neighbor = candidates[idx];
+                        neighbors.push(neighbor.id);
+                        inDegrees[neighbor.id]++;
+                        totalDistanceSum += neighbor.dist;
+                        totalDistanceCount++;
+                    }
+                    knnAdjacency[i] = neighbors;
+                }
+
+                // Compute the full Phase Transition Curve S_g(k) for k in [1, 10]
+                computePhaseTransitionCurve();
+
+                // 3. Detect 2-Cycles (Mutual Nearest Neighbors: j in N_k(i) and i in N_k(j))
+                twoCycles = [];
+                const twoCycleMap = new Set();
+                for (let i = 0; i < totalNodes; i++) {
+                    for (let idx = 0; idx < knnAdjacency[i].length; idx++) {
+                        const j = knnAdjacency[i][idx];
+                        if (i < j && knnAdjacency[j].includes(i)) {
+                            twoCycles.push([i, j]);
+                            twoCycleMap.add(`${i}-${j}`);
+                        }
+                    }
+                }
+
+                // 4. Compute Connected Components using Union-Find
+                const uf = new UnionFind(totalNodes);
+                for (let i = 0; i < totalNodes; i++) {
+                    for (let idx = 0; idx < knnAdjacency[i].length; idx++) {
+                        const j = knnAdjacency[i][idx];
+                        uf.union(i, j);
+                    }
+                }
+
+                // 5. Gather Component Properties and Giant Component
+                components = new Array(totalNodes);
+                clusterSizes = {};
+                let maxSize = 0;
+                giantComponentId = -1;
+
+                for (let i = 0; i < totalNodes; i++) {
+                    const root = uf.find(i);
+                    components[i] = root;
+                    clusterSizes[root] = (clusterSizes[root] || 0) + 1;
+                }
+
+                for (const root in clusterSizes) {
+                    if (clusterSizes[root] > maxSize) {
+                        maxSize = clusterSizes[root];
+                        giantComponentId = parseInt(root, 10);
+                    }
+                }
+
+                updateDashboard(totalDistanceSum, totalDistanceCount);
+                draw();
+            }
+
+            // --- Phase Transition Curve Computation & Rendering Engine ---
+            function computePhaseTransitionCurve() {
+                const totalNodes = points.length;
+                if (totalNodes === 0) {
+                    phaseCurveValues.fill(0);
+                    return;
+                }
+                for (let testK = 1; testK <= 10; testK++) {
+                    const effK = Math.min(testK, Math.max(0, totalNodes - 1));
+                    const uf = new UnionFind(totalNodes);
+                    for (let i = 0; i < totalNodes; i++) {
+                        const list = sortedCandidates[i];
+                        for (let idx = 0; idx < effK; idx++) {
+                            uf.union(i, list[idx].id);
+                        }
+                    }
+                    let maxSize = 0;
+                    for (let i = 0; i < totalNodes; i++) {
+                        const sz = uf.getSize(i);
+                        if (sz > maxSize) maxSize = sz;
+                    }
+                    phaseCurveValues[testK - 1] = maxSize / totalNodes;
+                }
+            }
+
+            function drawPhaseTransitionCurve() {
+                const w = curveCanvas.width;
+                const h = curveCanvas.height;
+                curveCtx.clearRect(0, 0, w, h);
+
+                const activeK = Math.min(10, Math.max(1, k));
+                if (curveKLabel) curveKLabel.textContent = `k = ${activeK}`;
+
+                const padLeft = 70;
+                const padRight = 60;
+                const padTop = 40;
+                const padBottom = 48;
+
+                const plotW = w - padLeft - padRight;
+                const plotH = h - padTop - padBottom;
+
+                // 1. Draw Subtle Regime Background Zones
+                // Subcritical Regime [0.0, 0.50]
+                const ySubTop = padTop + plotH * (1 - 0.50);
+                const ySubHeight = plotH * 0.50;
+                curveCtx.fillStyle = "rgba(255, 235, 235, 0.35)";
+                curveCtx.fillRect(padLeft, ySubTop, plotW, ySubHeight);
+
+                // Transition Regime [0.50, 0.85]
+                const yTransTop = padTop + plotH * (1 - 0.85);
+                const yTransHeight = plotH * 0.35;
+                curveCtx.fillStyle = "rgba(255, 250, 225, 0.45)";
+                curveCtx.fillRect(padLeft, yTransTop, plotW, yTransHeight);
+
+                // Supercritical / Percolated Regime [0.85, 1.0]
+                const ySuperTop = padTop;
+                const ySuperHeight = plotH * 0.15;
+                curveCtx.fillStyle = "rgba(235, 255, 240, 0.45)";
+                curveCtx.fillRect(padLeft, ySuperTop, plotW, ySuperHeight);
+
+                // Regime Label Tags on right margin
+                curveCtx.font = "bold 11px sans-serif";
+                curveCtx.textAlign = "left";
+                curveCtx.fillStyle = "#007a3d";
+                curveCtx.fillText("Supercritical (Connected)", padLeft + plotW - 170, padTop + 14);
+
+                curveCtx.fillStyle = "#b87000";
+                curveCtx.fillText("Transition Regime", padLeft + plotW - 170, padTop + plotH * 0.30);
+
+                curveCtx.fillStyle = "#b00000";
+                curveCtx.fillText("Subcritical (Disconnected)", padLeft + plotW - 170, padTop + plotH * 0.75);
+
+                // 2. Grid lines and Y-axis ticks
+                curveCtx.strokeStyle = "#e2e2e2";
+                curveCtx.lineWidth = 1;
+                curveCtx.font = "11px monospace";
+                curveCtx.fillStyle = "#444444";
+                curveCtx.textAlign = "right";
+                curveCtx.textBaseline = "middle";
+
+                const yTicks = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
+                for (let i = 0; i < yTicks.length; i++) {
+                    const yVal = yTicks[i];
+                    const yPos = padTop + plotH * (1 - yVal);
+                    curveCtx.beginPath();
+                    curveCtx.moveTo(padLeft, yPos);
+                    curveCtx.lineTo(padLeft + plotW, yPos);
+                    curveCtx.stroke();
+                    curveCtx.fillText(yVal.toFixed(1), padLeft - 8, yPos);
+                }
+
+                // 3. X-axis ticks (k = 1 to 10)
+                curveCtx.textAlign = "center";
+                curveCtx.textBaseline = "top";
+                curveCtx.font = "bold 12px sans-serif";
+                for (let kVal = 1; kVal <= 10; kVal++) {
+                    const xPos = padLeft + ((kVal - 1) / 9) * plotW;
+                    curveCtx.beginPath();
+                    curveCtx.moveTo(xPos, padTop + plotH);
+                    curveCtx.lineTo(xPos, padTop + plotH + 6);
+                    curveCtx.strokeStyle = "#333333";
+                    curveCtx.stroke();
+                    
+                    curveCtx.fillStyle = (kVal === activeK) ? "#d92b2b" : "#222222";
+                    curveCtx.fillText(`k = ${kVal}`, xPos, padTop + plotH + 8);
+                }
+
+                // Axis borders
+                curveCtx.strokeStyle = "#222222";
+                curveCtx.lineWidth = 1.5;
+                curveCtx.beginPath();
+                curveCtx.moveTo(padLeft, padTop);
+                curveCtx.lineTo(padLeft, padTop + plotH);
+                curveCtx.lineTo(padLeft + plotW, padTop + plotH);
+                curveCtx.stroke();
+
+                // Axis Titles
+                curveCtx.fillStyle = "#000000";
+                curveCtx.font = "bold 13px sans-serif";
+                curveCtx.fillText("Degree Parameter (k)", padLeft + plotW / 2, padTop + plotH + 28);
+
+                curveCtx.save();
+                curveCtx.translate(16, padTop + plotH / 2);
+                curveCtx.rotate(-Math.PI / 2);
+                curveCtx.textAlign = "center";
+                curveCtx.fillText("Giant Component Size Ratio: S_g = |C_max| / N", 0, 0);
+                curveCtx.restore();
+
+                if (points.length === 0) return;
+
+                // 4. Critical Threshold Reference Line at Sg = 0.50
+                const yCrit = padTop + plotH * 0.50;
+                curveCtx.setLineDash([6, 4]);
+                curveCtx.strokeStyle = "#b87000";
+                curveCtx.lineWidth = 1.5;
+                curveCtx.beginPath();
+                curveCtx.moveTo(padLeft, yCrit);
+                curveCtx.lineTo(padLeft + plotW, yCrit);
+                curveCtx.stroke();
+                curveCtx.setLineDash([]);
+
+                curveCtx.fillStyle = "#b87000";
+                curveCtx.font = "italic 11px sans-serif";
+                curveCtx.textAlign = "left";
+                curveCtx.fillText("Critical Percolation Threshold S_g = 0.50", padLeft + 12, yCrit - 6);
+
+                // 5. Draw Active k Vertical Highlight Column
+                const activeVal = phaseCurveValues[activeK - 1];
+                const curX = padLeft + ((activeK - 1) / 9) * plotW;
+                const curY = padTop + plotH * (1 - Math.max(0, Math.min(1, activeVal)));
+
+                curveCtx.strokeStyle = "rgba(217, 43, 43, 0.35)";
+                curveCtx.lineWidth = 3;
+                curveCtx.beginPath();
+                curveCtx.moveTo(curX, padTop + plotH);
+                curveCtx.lineTo(curX, curY);
+                curveCtx.stroke();
+
+                // 6. Draw Phase Transition Curve
+                curveCtx.strokeStyle = "#1a73e8";
+                curveCtx.lineWidth = 3.2;
+                curveCtx.beginPath();
+                for (let kVal = 1; kVal <= 10; kVal++) {
+                    const val = phaseCurveValues[kVal - 1];
+                    const xPos = padLeft + ((kVal - 1) / 9) * plotW;
+                    const yPos = padTop + plotH * (1 - Math.max(0, Math.min(1, val)));
+                    if (kVal === 1) {
+                        curveCtx.moveTo(xPos, yPos);
+                    } else {
+                        curveCtx.lineTo(xPos, yPos);
+                    }
+                }
+                curveCtx.stroke();
+
+                // 7. Draw Data Points and Numerical Labels
+                for (let kVal = 1; kVal <= 10; kVal++) {
+                    const val = phaseCurveValues[kVal - 1];
+                    const xPos = padLeft + ((kVal - 1) / 9) * plotW;
+                    const yPos = padTop + plotH * (1 - Math.max(0, Math.min(1, val)));
+
+                    // Circular point node
+                    curveCtx.beginPath();
+                    curveCtx.arc(xPos, yPos, 5.5, 0, 2 * Math.PI);
+                    curveCtx.fillStyle = (kVal === activeK) ? "#d92b2b" : "#ffffff";
+                    curveCtx.fill();
+                    curveCtx.lineWidth = 2.2;
+                    curveCtx.strokeStyle = (kVal === activeK) ? "#d92b2b" : "#1a73e8";
+                    curveCtx.stroke();
+
+                    // Numerical S_g value printed above each point
+                    curveCtx.font = (kVal === activeK) ? "bold 12px monospace" : "10px monospace";
+                    curveCtx.fillStyle = (kVal === activeK) ? "#d92b2b" : "#333333";
+                    curveCtx.textAlign = "center";
+                    const labelY = (yPos < padTop + 20) ? yPos + 16 : yPos - 9;
+                    curveCtx.fillText(val.toFixed(3), xPos, labelY);
+                }
+
+                // 8. Highlight Active Target Point
+                // Outer pulsing ring
+                curveCtx.strokeStyle = "#d92b2b";
+                curveCtx.lineWidth = 2.5;
+                curveCtx.beginPath();
+                curveCtx.arc(curX, curY, 10, 0, 2 * Math.PI);
+                curveCtx.stroke();
+
+                // Solid center core
+                curveCtx.fillStyle = "#d92b2b";
+                curveCtx.beginPath();
+                curveCtx.arc(curX, curY, 5.5, 0, 2 * Math.PI);
+                curveCtx.fill();
+
+                // Prominent Callout Banner at Top
+                curveCtx.fillStyle = "#d92b2b";
+                curveCtx.font = "bold 13px monospace";
+                curveCtx.textAlign = "left";
+                curveCtx.fillText(`CURRENT STATE: Degree k = ${activeK} | S_g = ${activeVal.toFixed(3)} (${(activeVal * 100).toFixed(1)}% of vertices in giant component)`, padLeft + 12, padTop - 15);
+            }
+
+            // --- Color Palette Generator for Clusters ---
+            function getClusterColor(clusterId, isGiant) {
+                if (isGiant && chkHighlightGiant.checked) {
+                    return "#d92b2b"; // Vibrant Crimson for Giant Component
+                }
+                // Deterministic Golden Ratio HSL distribution for distinct clusters
+                const hue = (clusterId * 137.508) % 360;
+                return `hsl(${hue}, 70%, 45%)`;
+            }
+
+            // --- Dashboard Updates ---
+            function updateDashboard(distSum = 0, distCount = 0) {
+                const totalNodes = points.length;
+                const currentK = Math.min(k, Math.max(0, totalNodes - 1));
+                const totalEdges = totalNodes * currentK;
+                const numClusters = Object.keys(clusterSizes).length;
+                const giantSize = giantComponentId !== -1 ? clusterSizes[giantComponentId] : 0;
+                const giantRatio = totalNodes > 0 ? (giantSize / totalNodes) : 0;
+
+                // Stats Panel
+                statN.textContent = totalNodes;
+                statK.textContent = currentK;
+                statTotalNodes.textContent = totalNodes;
+                statEdges.textContent = totalEdges;
+                stat2Cycles.textContent = twoCycles.length;
+
+                const reciprocity = totalEdges > 0 ? ((2 * twoCycles.length / totalEdges) * 100).toFixed(1) : "0.0";
+                statReciprocity.textContent = reciprocity + "%";
+
+                let maxIn = 0;
+                let sumIn = 0;
+                for (let i = 0; i < inDegrees.length; i++) {
+                    if (inDegrees[i] > maxIn) maxIn = inDegrees[i];
+                    sumIn += inDegrees[i];
+                }
+                statMaxInDegree.textContent = maxIn;
+                statAvgInDegree.textContent = totalNodes > 0 ? (sumIn / totalNodes).toFixed(2) : "0.00";
+
+                const meanDist = distCount > 0 ? (distSum / distCount).toFixed(4) : "0.0000";
+                statMeanDistance.textContent = meanDist;
+
+                // Percolation Dashboard
+                statGiantRatio.textContent = giantRatio.toFixed(3);
+                statGiantPercent.textContent = (giantRatio * 100).toFixed(1) + "%";
+                statGiantSize.textContent = giantSize;
+                statComponentCount.textContent = numClusters;
+
+                const avgComp = numClusters > 0 ? (totalNodes / numClusters).toFixed(2) : "0.00";
+                statAvgCompSize.textContent = avgComp;
+
+                // Percolation Phase Indicator Logic
+                if (totalNodes === 0) {
+                    phaseIndicator.textContent = "No Nodes";
+                    phaseIndicator.style.color = "#666";
+                } else if (giantRatio >= 1.0) {
+                    phaseIndicator.textContent = "Fully Connected Component (Sg = 1.0)";
+                    phaseIndicator.style.color = "#008000"; // Green
+                } else if (giantRatio >= 0.85) {
+                    phaseIndicator.textContent = "Supercritical Percolated Phase (Sg >= 0.85)";
+                    phaseIndicator.style.color = "#007a3d";
+                } else if (giantRatio >= 0.50) {
+                    phaseIndicator.textContent = "Percolation Transition Emerged (0.50 <= Sg < 0.85)";
+                    phaseIndicator.style.color = "#b87000"; // Amber
+                } else {
+                    phaseIndicator.textContent = "Subcritical Disconnected Lattices (Sg < 0.50)";
+                    phaseIndicator.style.color = "#b00000"; // Red
+                }
+
+                updateInspector();
+            }
+
+            // --- Node Inspector Details ---
+            function updateInspector() {
+                if (hoveredNodeIndex < 0 || hoveredNodeIndex >= points.length) {
+                    inspectorInfo.innerHTML = "<i>Hover over any node in the canvas to inspect its Euclidean coordinates, nearest neighbors, in/out degrees, and cluster assignment.</i>";
+                    return;
+                }
+
+                const p = points[hoveredNodeIndex];
+                const root = components[hoveredNodeIndex];
+                const isGiant = (root === giantComponentId);
+                const nns = knnAdjacency[hoveredNodeIndex] || [];
+                const inDeg = inDegrees[hoveredNodeIndex] || 0;
+                const clusterSize = clusterSizes[root] || 1;
+
+                let nnListHtml = "";
+                for (let idx = 0; idx < nns.length; idx++) {
+                    const targetId = nns[idx];
+                    const dist = pairwiseDistances[hoveredNodeIndex][targetId].toFixed(4);
+                    const isMutual = knnAdjacency[targetId] && knnAdjacency[targetId].includes(hoveredNodeIndex);
+                    nnListHtml += `<li>Node #${targetId} (d = ${dist}) ${isMutual ? "<b style='color: #b00;'>[2-CYCLE MUTUAL]</b>" : ""}</li>`;
+                }
+
+                inspectorInfo.innerHTML = `
+                    <b>Node ID:</b> #${p.id}<br>
+                    <b>Coordinates:</b> (${p.x.toFixed(4)}, ${p.y.toFixed(4)})<br>
+                    <b>Out-Degree (k):</b> ${nns.length} | <b>In-Degree:</b> ${inDeg}<br>
+                    <b>Cluster ID:</b> Component #${root} (${clusterSize} nodes) ${isGiant ? "<b style='color: #d92b2b;'>[GIANT COMPONENT]</b>" : ""}<br>
+                    <b>Directed Nearest Neighbors:</b>
+                    <ul style="margin: 4px 0 0 16px; padding: 0;">
+                        ${nnListHtml || "<li>None</li>"}
+                    </ul>
+                `;
+            }
+
+            // --- HTML5 Canvas Renderer ---
+            function draw() {
+                const w = canvas.width;
+                const h = canvas.height;
+                ctx.clearRect(0, 0, w, h);
+
+                // 1. Draw Grid Lines & Coordinates Plane
+                ctx.strokeStyle = "#e8e8e8";
+                ctx.lineWidth = 1;
+                const gridSteps = 10;
+                for (let i = 0; i <= gridSteps; i++) {
+                    const pos = (i / gridSteps) * w;
+                    ctx.beginPath();
+                    ctx.moveTo(pos, 0);
+                    ctx.lineTo(pos, h);
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.moveTo(0, pos);
+                    ctx.lineTo(w, pos);
+                    ctx.stroke();
+                }
+
+                const totalNodes = points.length;
+                if (totalNodes === 0) return;
+
+                // 2. Draw Directed k-NN Edges
+                const showArrows = chkShowArrows.checked;
+                const showColorClusters = chkColorClusters.checked;
+                const highlight2Cycles = chkHighlight2Cycles.checked;
+
+                // Set of 2-cycle keys
+                const cycleSet = new Set();
+                if (highlight2Cycles) {
+                    for (let c = 0; c < twoCycles.length; c++) {
+                        cycleSet.add(`${twoCycles[c][0]}-${twoCycles[c][1]}`);
+                    }
+                }
+
+                // First pass: Draw regular directed edges
+                for (let i = 0; i < totalNodes; i++) {
+                    const p1 = points[i];
+                    const x1 = p1.x * w;
+                    const y1 = p1.y * h;
+                    const neighbors = knnAdjacency[i] || [];
+                    const root = components[i];
+                    const isGiant = (root === giantComponentId);
+
+                    for (let idx = 0; idx < neighbors.length; idx++) {
+                        const j = neighbors[idx];
+                        const key = i < j ? `${i}-${j}` : `${j}-${i}`;
+
+                        // Skip 2-cycles for distinct second pass rendering
+                        if (highlight2Cycles && cycleSet.has(key)) {
+                            continue;
+                        }
+
+                        const p2 = points[j];
+                        const x2 = p2.x * w;
+                        const y2 = p2.y * h;
+
+                        ctx.strokeStyle = showColorClusters ? getClusterColor(root, isGiant) : "#888888";
+                        ctx.globalAlpha = isGiant && chkHighlightGiant.checked ? 0.75 : 0.45;
+                        ctx.lineWidth = 1.2;
+
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
+                        ctx.stroke();
+
+                        if (showArrows) {
+                            drawArrowHead(x1, y1, x2, y2, 8, ctx.strokeStyle);
+                        }
+                    }
+                }
+
+                // Second pass: Draw 2-cycles (Bi-directional Mutual Edges) with Prominence
+                if (highlight2Cycles) {
+                    for (let c = 0; c < twoCycles.length; c++) {
+                        const i = twoCycles[c][0];
+                        const j = twoCycles[c][1];
+                        const p1 = points[i];
+                        const p2 = points[j];
+                        const x1 = p1.x * w;
+                        const y1 = p1.y * h;
+                        const x2 = p2.x * w;
+                        const y2 = p2.y * h;
+
+                        // Draw distinct golden/crimson thick mutual edge
+                        ctx.strokeStyle = "#b8860b"; // Dark Goldenrod
+                        ctx.globalAlpha = 0.95;
+                        ctx.lineWidth = 2.8;
+
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
+                        ctx.stroke();
+
+                        if (showArrows) {
+                            // Double arrowheads
+                            drawArrowHead(x1, y1, x2, y2, 9, "#b8860b");
+                            drawArrowHead(x2, y2, x1, y1, 9, "#b8860b");
+                        }
+                    }
+                }
+
+                ctx.globalAlpha = 1.0;
+
+                // 3. Draw Nodes (Vertices)
+                const showCoords = chkShowCoordinates.checked;
+                const nodeRadius = totalNodes > 300 ? 3.5 : (totalNodes > 150 ? 4.5 : 6);
+
+                for (let i = 0; i < totalNodes; i++) {
+                    const p = points[i];
+                    const px = p.x * w;
+                    const py = p.y * h;
+                    const root = components[i];
+                    const isGiant = (root === giantComponentId);
+                    const isHovered = (i === hoveredNodeIndex);
+
+                    ctx.beginPath();
+                    ctx.arc(px, py, isHovered ? nodeRadius + 3 : nodeRadius, 0, 2 * Math.PI);
+
+                    if (showColorClusters) {
+                        ctx.fillStyle = getClusterColor(root, isGiant);
+                    } else {
+                        ctx.fillStyle = "#333333";
+                    }
+                    ctx.fill();
+
+                    ctx.lineWidth = isHovered ? 2.5 : 1.2;
+                    ctx.strokeStyle = isHovered ? "#000000" : "#ffffff";
+                    ctx.stroke();
+
+                    // Optional label/coordinate
+                    if (showCoords || isHovered) {
+                        ctx.fillStyle = "#000000";
+                        ctx.font = isHovered ? "bold 12px sans-serif" : "10px sans-serif";
+                        ctx.fillText(`${i}`, px + nodeRadius + 2, py - 2);
+                    }
+                }
+
+                // 4. Update the Real-Time Phase Transition Curve Canvas
+                drawPhaseTransitionCurve();
+            }
+
+            // --- Helper: Draw Directed Arrowhead ---
+            function drawArrowHead(fromX, fromY, toX, toY, headLength, color) {
+                const dx = toX - fromX;
+                const dy = toY - fromY;
+                const angle = Math.atan2(dy, dx);
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 10) return;
+
+                // Position arrowhead slightly before the target node boundary
+                const offset = 6;
+                const tipX = toX - offset * Math.cos(angle);
+                const tipY = toY - offset * Math.sin(angle);
+
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(tipX - headLength * Math.cos(angle - Math.PI / 6), tipY - headLength * Math.sin(angle - Math.PI / 6));
+                ctx.lineTo(tipX - headLength * Math.cos(angle + Math.PI / 6), tipY - headLength * Math.sin(angle + Math.PI / 6));
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // --- Interactive Canvas Events (Hover, Click, Drag) ---
+            function getCanvasCoords(evt) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const canvasX = (evt.clientX - rect.left) * scaleX;
+                const canvasY = (evt.clientY - rect.top) * scaleY;
+                return {
+                    x: Math.max(0.005, Math.min(0.995, canvasX / canvas.width)),
+                    y: Math.max(0.005, Math.min(0.995, canvasY / canvas.height)),
+                    px: canvasX,
+                    py: canvasY
+                };
+            }
+
+            function findNodeUnder(canvasX, canvasY, radiusPx = 10) {
+                const w = canvas.width;
+                const h = canvas.height;
+                for (let i = points.length - 1; i >= 0; i--) {
+                    const dx = points[i].x * w - canvasX;
+                    const dy = points[i].y * h - canvasY;
+                    if (Math.sqrt(dx * dx + dy * dy) <= radiusPx) {
+                        return i;
+                    }
+                }
+                return -1;
+            }
+
+            canvas.addEventListener("mousemove", function(evt) {
+                const pos = getCanvasCoords(evt);
+                if (draggedNodeIndex !== -1) {
+                    points[draggedNodeIndex].x = pos.x;
+                    points[draggedNodeIndex].y = pos.y;
+                    recomputeGraph();
+                    return;
+                }
+
+                const prevHover = hoveredNodeIndex;
+                hoveredNodeIndex = findNodeUnder(pos.px, pos.py);
+                if (prevHover !== hoveredNodeIndex) {
+                    updateInspector();
+                    draw();
+                }
+            });
+
+            canvas.addEventListener("mousedown", function(evt) {
+                const pos = getCanvasCoords(evt);
+                const targetNode = findNodeUnder(pos.px, pos.py);
+                if (targetNode !== -1) {
+                    draggedNodeIndex = targetNode;
+                }
+            });
+
+            window.addEventListener("mouseup", function() {
+                draggedNodeIndex = -1;
+            });
+
+            canvas.addEventListener("click", function(evt) {
+                const pos = getCanvasCoords(evt);
+                const targetNode = findNodeUnder(pos.px, pos.py);
+                // If clicked on empty space, add a new point
+                if (targetNode === -1) {
+                    points.push({
+                        id: points.length,
+                        x: pos.x,
+                        y: pos.y
+                    });
+                    N = points.length;
+                    nodeCountRange.value = N;
+                    nodeCountVal.textContent = N;
+                    recomputeGraph();
+                }
+            });
+
+            canvas.addEventListener("mouseleave", function() {
+                if (draggedNodeIndex === -1 && hoveredNodeIndex !== -1) {
+                    hoveredNodeIndex = -1;
+                    updateInspector();
+                    draw();
+                }
+            });
+
+            // --- Event Listeners for UI Controls ---
+            nodeCountRange.addEventListener("input", function() {
+                N = parseInt(this.value, 10);
+                nodeCountVal.textContent = N;
+                points = generatePoints(N, pointDistribution.value);
+                recomputeGraph();
+            });
+
+            kDegreeRange.addEventListener("input", function() {
+                k = parseInt(this.value, 10);
+                kDegreeVal.textContent = k;
+                recomputeGraph();
+            });
+
+            pointDistribution.addEventListener("change", function() {
+                points = generatePoints(N, this.value);
+                recomputeGraph();
+            });
+
+            btnRegenerate.addEventListener("click", function() {
+                points = generatePoints(N, pointDistribution.value);
+                recomputeGraph();
+            });
+
+            btnClearPoints.addEventListener("click", function() {
+                points = [];
+                N = 0;
+                nodeCountRange.value = 0;
+                nodeCountVal.textContent = 0;
+                recomputeGraph();
+            });
+
+            function setPreset(val) {
+                N = val;
+                nodeCountRange.value = N;
+                nodeCountVal.textContent = N;
+                points = generatePoints(N, pointDistribution.value);
+                recomputeGraph();
+            }
+
+            preset50.addEventListener("click", () => setPreset(50));
+            preset100.addEventListener("click", () => setPreset(100));
+            preset200.addEventListener("click", () => setPreset(200));
+            preset500.addEventListener("click", () => setPreset(500));
+
+            // Checkbox changes trigger redraw
+            [chkShowArrows, chkHighlight2Cycles, chkColorClusters, chkHighlightGiant, chkShowCoordinates].forEach(chk => {
+                chk.addEventListener("change", draw);
+            });
+
+            // Auto-Sweep k Animation
+            btnSweepK.addEventListener("click", function() {
+                if (isSweeping) {
+                    clearInterval(sweepTimer);
+                    isSweeping = false;
+                    btnSweepK.textContent = "Auto-Sweep k (1 \u2192 10)";
+                    return;
+                }
+
+                isSweeping = true;
+                btnSweepK.textContent = "Stop Sweep";
+                k = 1;
+                kDegreeRange.value = k;
+                kDegreeVal.textContent = k;
+                recomputeGraph();
+
+                sweepTimer = setInterval(() => {
+                    k++;
+                    if (k > 10) {
+                        k = 1;
+                    }
+                    kDegreeRange.value = k;
+                    kDegreeVal.textContent = k;
+                    recomputeGraph();
+                }, 850);
+            });
+
+            // Interactive Click on Phase Transition Curve to Select k
+            curveCanvas.addEventListener("click", function(evt) {
+                const rect = curveCanvas.getBoundingClientRect();
+                const scaleX = curveCanvas.width / rect.width;
+                const mouseX = (evt.clientX - rect.left) * scaleX;
+                const padLeft = 70;
+                const padRight = 60;
+                const plotW = curveCanvas.width - padLeft - padRight;
+                
+                let closestK = 1;
+                let minDiff = Infinity;
+                for (let testK = 1; testK <= 10; testK++) {
+                    const xPos = padLeft + ((testK - 1) / 9) * plotW;
+                    const diff = Math.abs(mouseX - xPos);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closestK = testK;
+                    }
+                }
+                k = closestK;
+                kDegreeRange.value = k;
+                kDegreeVal.textContent = k;
+                recomputeGraph();
+            });
+
+            // --- Initial Startup ---
+            points = generatePoints(N, pointDistribution.value);
+            recomputeGraph();
+
+        })();
+    </script>
+</body>
+</html>
