@@ -1,0 +1,2157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ergodic Wealth Dynamics & Kelly Criterion Simulator</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+  <style>
+    :root {
+      --bg-page: #f9f9fb;
+      --bg-panel: #ffffff;
+      --bg-subtle: #f0f2f5;
+      --bg-highlight: #e9ecef;
+      --text-main: #1a1a1a;
+      --text-muted: #555555;
+      --text-dim: #777777;
+
+      --border-main: #2d3748;
+      --border-subtle: #cbd5e1;
+
+      --c-kelly: #16a34a;
+      --c-half: #d97706;
+      --c-over: #dc2626;
+      --c-over2: #991b1b;
+      --c-custom: #2563eb;
+      --c-flat: #64748b;
+      --c-theory: #0f172a;
+
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-size: 13.5px;
+      line-height: 1.5;
+      padding: 16px;
+    }
+
+    header {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-main);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+      color: var(--text-main);
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .math-proof-block {
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-main);
+      padding: 12px 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.7;
+      color: #000000;
+      overflow-x: auto;
+    }
+
+    .math-proof-block strong {
+      color: #0f172a;
+    }
+
+    .math-proof-block .highlight-green {
+      color: var(--c-kelly);
+      font-weight: bold;
+    }
+    .math-proof-block .highlight-red {
+      color: var(--c-over);
+      font-weight: bold;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 2px;
+      border-bottom: 1px solid var(--border-main);
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-main);
+      border-bottom: none;
+      padding: 8px 16px;
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-muted);
+      outline: none;
+      transition: background 0.1s, color 0.1s;
+    }
+
+    .tab-btn:hover {
+      background: var(--bg-highlight);
+      color: var(--text-main);
+    }
+
+    .tab-btn.active {
+      background: var(--bg-panel);
+      color: var(--text-main);
+      border-bottom: 1px solid var(--bg-panel);
+      margin-bottom: -1px;
+      font-weight: 700;
+    }
+
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 1024px) {
+      .grid-2col {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    fieldset {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-main);
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+
+    legend {
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0 6px;
+      color: var(--text-main);
+    }
+
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      gap: 8px;
+    }
+
+    .control-row label {
+      font-size: 12px;
+      font-weight: 500;
+      flex: 1;
+    }
+
+    .control-row input[type="number"],
+    .control-row select {
+      background: #ffffff;
+      border: 1px solid var(--border-main);
+      padding: 4px 6px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      width: 90px;
+      text-align: right;
+    }
+
+    .control-row input[type="range"] {
+      flex: 1;
+      accent-color: var(--border-main);
+      height: 4px;
+    }
+
+    .range-val {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      width: 55px;
+      text-align: right;
+      display: inline-block;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    button {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-main);
+      padding: 6px 12px;
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-main);
+    }
+
+    button:hover {
+      background: var(--bg-highlight);
+    }
+
+    button:active {
+      background: #d1d5db;
+    }
+
+    button.btn-primary {
+      background: #1e293b;
+      color: #ffffff;
+    }
+    button.btn-primary:hover {
+      background: #0f172a;
+    }
+
+    button.btn-danger {
+      background: #fee2e2;
+      border-color: var(--c-over);
+      color: var(--c-over);
+    }
+    button.btn-danger:hover {
+      background: #fecaca;
+    }
+
+    .canvas-panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-main);
+      padding: 12px;
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 6px;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .panel-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 380px;
+      background: #ffffff;
+      border: 1px solid var(--border-subtle);
+      cursor: crosshair;
+    }
+
+    .legend-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 8px;
+      font-size: 11.5px;
+      font-family: var(--font-mono);
+      background: var(--bg-subtle);
+      padding: 6px 10px;
+      border: 1px solid var(--border-subtle);
+      align-items: center;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-swatch {
+      width: 12px;
+      height: 12px;
+      border: 1px solid #000;
+      display: inline-block;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--border-main);
+      background: var(--bg-panel);
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      margin-top: 10px;
+    }
+
+    th, td {
+      border: 1px solid var(--border-main);
+      padding: 6px 8px;
+      text-align: right;
+    }
+
+    th {
+      background: var(--bg-subtle);
+      font-weight: 700;
+      text-align: right;
+      color: var(--text-main);
+    }
+
+    th:first-child, td:first-child {
+      text-align: left;
+    }
+
+    tr:hover {
+      background-color: #f8fafc;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 1px 4px;
+      font-size: 10px;
+      font-weight: bold;
+      border: 1px solid #000000;
+    }
+    .tag-green { background: #dcfce7; color: #15803d; border-color: #16a34a; }
+    .tag-amber { background: #fef3c7; color: #b45309; border-color: #d97706; }
+    .tag-red { background: #fee2e2; color: #b91c1c; border-color: #dc2626; }
+    .tag-blue { background: #dbeafe; color: #1d4ed8; border-color: #2563eb; }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .metric-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-main);
+      padding: 8px 10px;
+    }
+
+    .metric-label {
+      font-size: 10.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    .metric-value {
+      font-family: var(--font-mono);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-top: 2px;
+    }
+
+    .metric-sub {
+      font-size: 10.5px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    .info-box {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-main);
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.55;
+      margin-bottom: 12px;
+    }
+
+    .info-box h4 {
+      font-size: 12.5px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .badge-ruin {
+      background: #dc2626;
+      color: #ffffff;
+      padding: 1px 5px;
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    #tooltip-display, #tooltip-growth, #tooltip-sp, #tooltip-ens {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #0f172a;
+      min-height: 18px;
+    }
+
+    .coin-display {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-main);
+      margin-bottom: 10px;
+    }
+    .coin-icon {
+      width: 36px;
+      height: 36px;
+      border: 2px solid #000;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      background: #fef08a;
+    }
+
+    .katex {
+      font-size: 1.05em;
+    }
+    .katex-display {
+      margin: 6px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Ergodic Wealth Dynamics & Log-Optimal Capital Allocation</h1>
+    <div class="subtitle">
+      Mathematical laboratory comparing time-average growth vs. ensemble-average expectation, ruin probabilities, the Kelly Criterion, and St. Petersburg Paradox resolution.
+    </div>
+
+    <div class="math-proof-block">
+      <strong>Continuous Derivative Proof (Kelly Criterion):</strong><br>
+      Expected Logarithmic Growth Rate: 
+      $g(f) = \mathbb{E}\left[\ln\left(\frac{W_{t+1}}{W_t}\right)\right] = p \ln(1 + bf) + (1-p) \ln(1 - f)$<br>
+      First-Order Optimality Condition: 
+      $\frac{dg}{df} = \frac{pb}{1+bf} - \frac{1-p}{1-f} = 0 \implies pb(1-f) - (1-p)(1+bf) = 0$<br>
+      Optimal Fraction: 
+      <span class="highlight-green">$f^* = \frac{p(b+1) - 1}{b} = \frac{pb - q}{b} = p - \frac{q}{b}$</span> &nbsp;|&nbsp; 
+      Critical Ruin Threshold ($g(f_c)=0$): <span class="highlight-red">$(1+bf_c)^p (1-f_c)^{1-p} = 1$</span><br>
+      <strong>Ergodicity Breakdown:</strong> $\mathbb{E}[W_T] = W_0 (1 + f(pb-q))^T \to \infty$ for all $f > 0$ with edge, but time-average sample path $W_T \sim W_0 e^{T \cdot g(f)} \to 0$ almost surely whenever $f > f_c$.
+    </div>
+  </header>
+
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="switchTab('tab-kelly')">1. Multi-Period Wealth Simulator</button>
+    <button class="tab-btn" onclick="switchTab('tab-growth-curve')">2. Growth Rate Curve & Ruin Zones</button>
+    <button class="tab-btn" onclick="switchTab('tab-st-petersburg')">3. St. Petersburg Paradox Explorer</button>
+    <button class="tab-btn" onclick="switchTab('tab-ergodicity-lab')">4. Ergodicity & Ensemble vs Time Average</button>
+  </div>
+
+  <div id="tab-kelly" class="tab-content active">
+    <div class="grid-2col">
+      <div>
+        <fieldset>
+          <legend>Game Parameters</legend>
+          <div class="control-row">
+            <label for="inp-p">Win Probability ($p$):</label>
+            <input type="number" id="inp-p" min="0.01" max="0.99" step="0.01" value="0.60" onchange="syncControls('p', this.value)">
+          </div>
+          <div class="control-row">
+            <input type="range" id="rng-p" min="0.01" max="0.99" step="0.01" value="0.60" oninput="syncControls('p', this.value)">
+            <span class="range-val" id="val-p">0.60</span>
+          </div>
+
+          <div class="control-row" style="margin-top: 8px;">
+            <label for="inp-b">Net Odds / Payoff ($b:1$):</label>
+            <input type="number" id="inp-b" min="0.1" max="20" step="0.1" value="1.0" onchange="syncControls('b', this.value)">
+          </div>
+          <div class="control-row">
+            <input type="range" id="rng-b" min="0.1" max="10" step="0.1" value="1.0" oninput="syncControls('b', this.value)">
+            <span class="range-val" id="val-b">1.00</span>
+          </div>
+
+          <div class="control-row" style="margin-top: 8px;">
+            <label for="inp-custom-f">Custom Bet Fraction ($f$):</label>
+            <input type="number" id="inp-custom-f" min="0.00" max="0.99" step="0.01" value="0.30" onchange="syncControls('custom-f', this.value)">
+          </div>
+          <div class="control-row">
+            <input type="range" id="rng-custom-f" min="0.00" max="0.99" step="0.01" value="0.30" oninput="syncControls('custom-f', this.value)">
+            <span class="range-val" id="val-custom-f">0.30</span>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Simulation Engine Settings</legend>
+          <div class="control-row">
+            <label for="inp-steps">Time Steps ($T$):</label>
+            <input type="number" id="inp-steps" min="10" max="10000" step="10" value="500">
+          </div>
+          <div class="control-row">
+            <label for="inp-w0">Initial Capital ($W_0$):</label>
+            <input type="number" id="inp-w0" min="1" max="1000000" step="100" value="1000">
+          </div>
+          <div class="control-row">
+            <label for="inp-flat">Flat Bet Size ($K$):</label>
+            <input type="number" id="inp-flat" min="1" max="1000" step="5" value="50">
+          </div>
+          <div class="control-row">
+            <label for="sel-y-scale">Y-Axis Scale:</label>
+            <select id="sel-y-scale" onchange="renderTrajectoryCanvas()">
+              <option value="log">Log-Wealth ln(W_t / W_0)</option>
+              <option value="wealth">Raw Nominal Wealth ($)</option>
+            </select>
+          </div>
+
+          <div class="btn-group">
+            <button class="btn-primary" onclick="runSimulation()">▶ Run Simulation</button>
+            <button onclick="toggleAutoStep()" id="btn-auto">Auto-Play Step</button>
+            <button class="btn-danger" onclick="resetSimulation()">Reset</button>
+          </div>
+
+          <div style="margin-top: 10px; display: flex; gap: 4px;">
+            <button style="flex:1;" onclick="applyPreset('coin_edge')">Preset: Coin 60%</button>
+            <button style="flex:1;" onclick="applyPreset('high_odds')">Preset: 3:1 Odds</button>
+            <button style="flex:1;" onclick="applyPreset('small_edge')">Preset: 51% Edge</button>
+          </div>
+        </fieldset>
+
+        <div class="info-box">
+          <h4>Key Insight</h4>
+          Over-betting ($f > f^*$) increases variance without increasing expected growth rate. Betting beyond the critical ruin threshold $f_c$ guarantees asymptotic bankruptcy ($W_t \to 0$ with probability 1) despite a positive statistical edge.
+        </div>
+      </div>
+
+      <div>
+        <div class="metric-grid">
+          <div class="metric-card">
+            <div class="metric-label">Optimal Kelly $f^*$</div>
+            <div class="metric-value" id="disp-f-star" style="color: var(--c-kelly);">20.0%</div>
+            <div class="metric-sub">Half-Kelly: <span id="disp-half-f">10.0%</span></div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Max Growth Rate $g(f^*)$</div>
+            <div class="metric-value" id="disp-g-star" style="color: var(--c-kelly);">+2.04%</div>
+            <div class="metric-sub">per period</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Doubling Time $T_{2x}$</div>
+            <div class="metric-value" id="disp-t-double">34.0 steps</div>
+            <div class="metric-sub">$\ln(2)/g(f^*)$</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Ruin Threshold $f_c$</div>
+            <div class="metric-value" id="disp-f-crit" style="color: var(--c-over);">38.2%</div>
+            <div class="metric-sub">$g(f) < 0$ when $f > f_c$</div>
+          </div>
+        </div>
+
+        <div class="canvas-panel">
+          <div class="panel-header">
+            <span class="panel-title">Multi-Strategy Wealth Trajectories</span>
+            <div class="panel-actions">
+              <span id="tooltip-display">Hover over chart to inspect step values</span>
+            </div>
+          </div>
+          <canvas id="canvas-trajectories" width="850" height="380"></canvas>
+          
+          <div class="legend-bar">
+            <div class="legend-item"><span class="legend-swatch" style="background: var(--c-half);"></span> Half Kelly ($f^*/2$)</div>
+            <div class="legend-item"><span class="legend-swatch" style="background: var(--c-kelly);"></span> Full Kelly ($f^*$)</div>
+            <div class="legend-item"><span class="legend-swatch" style="background: #ea580c;"></span> 1.5x Kelly ($1.5f^*$)</div>
+            <div class="legend-item"><span class="legend-swatch" style="background: var(--c-over);"></span> 2.0x Kelly ($2f^*$)</div>
+            <div class="legend-item"><span class="legend-swatch" style="background: var(--c-custom);"></span> Custom $f$</div>
+            <div class="legend-item"><span class="legend-swatch" style="background: var(--c-flat);"></span> Flat Bet</div>
+            <div class="legend-item"><span class="legend-swatch" style="background: #000; border-top: 2px dashed #000; height: 0;"></span> Expected $t \cdot g(f)$</div>
+          </div>
+        </div>
+
+        <table border="1" id="table-results">
+          <thead>
+            <tr>
+              <th>Strategy</th>
+              <th>Fraction ($f$)</th>
+              <th>Theor. $g(f)$</th>
+              <th>Final Wealth ($W_T$)</th>
+              <th>Empirical $\hat{g}$</th>
+              <th>Max Drawdown</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-results">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-growth-curve" class="tab-content">
+    <div class="grid-2col">
+      <div>
+        <fieldset>
+          <legend>Curve Parameters</legend>
+          <div class="control-row">
+            <label for="inp-gc-p">Win Probability ($p$):</label>
+            <input type="number" id="inp-gc-p" min="0.01" max="0.99" step="0.01" value="0.60" onchange="syncControls('p', this.value)">
+          </div>
+          <div class="control-row">
+            <input type="range" id="rng-gc-p" min="0.01" max="0.99" step="0.01" value="0.60" oninput="syncControls('p', this.value)">
+            <span class="range-val" id="val-gc-p">0.60</span>
+          </div>
+
+          <div class="control-row" style="margin-top: 8px;">
+            <label for="inp-gc-b">Net Odds ($b:1$):</label>
+            <input type="number" id="inp-gc-b" min="0.1" max="10" step="0.1" value="1.0" onchange="syncControls('b', this.value)">
+          </div>
+          <div class="control-row">
+            <input type="range" id="rng-gc-b" min="0.1" max="10" step="0.1" value="1.0" oninput="syncControls('b', this.value)">
+            <span class="range-val" id="val-gc-b">1.00</span>
+          </div>
+
+          <div class="control-row" style="margin-top: 8px;">
+            <label for="inp-gc-custom">Selected $f$ Marker:</label>
+            <input type="number" id="inp-gc-custom" min="0.0" max="0.99" step="0.01" value="0.30" onchange="syncControls('custom-f', this.value)">
+          </div>
+          <div class="control-row">
+            <input type="range" id="rng-gc-custom" min="0.0" max="0.99" step="0.01" value="0.30" oninput="syncControls('custom-f', this.value)">
+            <span class="range-val" id="val-gc-custom">0.30</span>
+          </div>
+
+          <div class="control-row" style="margin-top: 8px;">
+            <label for="sel-gc-zoom">Y-Axis Framing:</label>
+            <select id="sel-gc-zoom" onchange="renderGrowthCurve()">
+              <option value="focused" selected>Focused Peak View (Dynamic)</option>
+              <option value="extended">Extended Asymptote View</option>
+            </select>
+          </div>
+        </fieldset>
+
+        <div class="info-box">
+          <h4>The 4 Regimes of the Growth Curve</h4>
+          <ol style="margin-left: 16px; margin-top: 4px; font-size: 11.5px;">
+            <li><strong>Under-betting ($0 < f < f^*$):</strong> Growth is positive but suboptimal; lower volatility and lower drawdown.</li>
+            <li><strong>Optimal Kelly ($f = f^*$):</strong> Maximum asymptotic log-wealth compound rate $g(f^*)$.</li>
+            <li><strong>Over-betting ($f^* < f < f_c$):</strong> Volatility drag reduces growth rate to levels attainable with much less risk.</li>
+            <li><strong>Ruin Zone ($f \ge f_c$):</strong> Expected growth rate $g(f) \le 0$. Bankruptcy occurs with probability 1 as $T \to \infty$.</li>
+          </ol>
+        </div>
+
+        <div class="info-box">
+          <h4>Volatility Drag Approximation</h4>
+          For small edges and fractions, Taylor expansion yields:<br>
+          $$g(f) \approx f \cdot \mu - \frac{1}{2} f^2 \sigma^2$$
+          where $\mu = pb - q$ and $\sigma^2 = p(1-p)(b+1)^2$. The quadratic penalty $\frac{1}{2}f^2\sigma^2$ represents the exact thermodynamic cost of variance.
+        </div>
+      </div>
+
+      <div>
+        <div class="canvas-panel">
+          <div class="panel-header">
+            <span class="panel-title">Expected Log Growth Function: $g(f) = p \ln(1+bf) + (1-p) \ln(1-f)$</span>
+            <div class="panel-actions">
+              <span id="tooltip-growth">Hover over curve to inspect values</span>
+            </div>
+          </div>
+          <canvas id="canvas-growth" width="850" height="380"></canvas>
+          <div class="legend-bar">
+            <div class="legend-item"><span class="legend-swatch" style="background: #2563eb;"></span> Growth Curve $g(f)$</div>
+            <div class="legend-item"><span class="legend-swatch" style="background: var(--c-kelly);"></span> Global Peak $(f^*, g(f^*))$</div>
+            <div class="legend-item"><span class="legend-swatch" style="background: var(--c-half);"></span> Half-Kelly $(f^*/2)$</div>
+            <div class="legend-item"><span class="legend-swatch" style="background: var(--c-over);"></span> Critical Ruin Boundary $f_c$</div>
+            <div class="legend-item"><span class="legend-swatch" style="background: #fee2e2; border: 1px dashed var(--c-over);"></span> Ruin Zone $g(f) < 0$</div>
+          </div>
+        </div>
+
+        <table border="1">
+          <thead>
+            <tr>
+              <th>Fraction Strategy</th>
+              <th>Bet Fraction ($f$)</th>
+              <th>Expected Growth $g(f)$</th>
+              <th>Equivalent Under-Kelly $f_{\text{eq}}$</th>
+              <th>Growth Efficiency</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-growth-metrics">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-st-petersburg" class="tab-content">
+    <div class="grid-2col">
+      <div>
+        <fieldset>
+          <legend>Game & Lottery Configuration</legend>
+          <div class="control-row">
+            <label for="inp-sp-cost">Ticket Entry Fee ($C$):</label>
+            <input type="number" id="inp-sp-cost" min="1" max="10000" step="1" value="25">
+          </div>
+          <div class="control-row">
+            <label for="inp-sp-w0">Initial Bankroll ($W_0$):</label>
+            <input type="number" id="inp-sp-w0" min="10" max="1000000" step="10" value="1000">
+          </div>
+          <div class="control-row">
+            <label for="inp-sp-cap">Casino Cap ($2^M$):</label>
+            <select id="inp-sp-cap">
+              <option value="none">No Cap ($\infty$ Payout)</option>
+              <option value="30">Max $2^{30} \approx \$1.07\text{B}$</option>
+              <option value="20" selected>Max $2^{20} = \$1,048,576$</option>
+              <option value="10">Max $2^{10} = \$1,024$</option>
+            </select>
+          </div>
+          <div class="control-row">
+            <label for="inp-sp-rounds">Rounds to Play ($N$):</label>
+            <input type="number" id="inp-sp-rounds" min="1" max="50000" step="10" value="500">
+          </div>
+
+          <div class="btn-group">
+            <button class="btn-primary" onclick="runStPetersburgSim()">Play $N$ Rounds</button>
+            <button onclick="playSingleStPetersburgRound()">Flip 1 Round</button>
+            <button class="btn-danger" onclick="resetStPetersburg()">Reset Bankroll</button>
+          </div>
+        </fieldset>
+
+        <div id="sp-single-result" class="coin-display">
+          <div class="coin-icon" id="sp-coin">🪙</div>
+          <div style="font-size: 11.5px;" id="sp-coin-text">
+            Ready to flip. Click 'Flip 1 Round' to simulate.
+          </div>
+        </div>
+
+        <div class="info-box">
+          <h4>The Paradox & 3 Resolutions</h4>
+          <strong>Paradox:</strong> Payoff is $2^k$ with probability $1/2^k$. Arithmetic expected value:
+          $$\mathbb{E}[X] = \sum_{k=1}^\infty \frac{1}{2^k} 2^k = 1 + 1 + 1 + \dots = \infty$$
+          Yet virtually nobody will pay even \$30 to play!
+          <hr style="margin: 6px 0; border: 0; border-top: 1px solid var(--border-subtle);">
+          <strong>1. Log Utility (Bernoulli 1738):</strong> Rational agents maximize $\mathbb{E}[\ln(W_0 - C + X)] = \ln(W_0)$. For $W_0 = \$1,000$, fair price $C^* \approx \$10.95$.<br>
+          <strong>2. Finite Casino Bankroll:</strong> Capped at $2^M$ implies $\mathbb{E}[X] = 1 + M/2$. (If cap is \$1M, $M=20 \implies \mathbb{E}[X] = \$11$).<br>
+          <strong>3. Ergodic Time Average:</strong> Repeated trials with fixed ticket price $C > C^*$ lead to guaranteed bankruptcy ($W_t \to 0$).
+        </div>
+      </div>
+
+      <div>
+        <div class="metric-grid">
+          <div class="metric-card">
+            <div class="metric-label">Current Bankroll $W_t$</div>
+            <div class="metric-value" id="disp-sp-wealth">$1,000.00</div>
+            <div class="metric-sub" id="disp-sp-roi">0.0% total return</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Max Payoff Observed</div>
+            <div class="metric-value" id="disp-sp-max-payoff" style="color: var(--c-kelly);">$0</div>
+            <div class="metric-sub" id="disp-sp-max-k">k = 0 flips</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Bernoulli Fair Price $C^*$</div>
+            <div class="metric-value" id="disp-sp-fair-c" style="color: var(--c-half);">$10.95</div>
+            <div class="metric-sub">For $W_0 = \$1,000$</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Empirical Mean Payoff</div>
+            <div class="metric-value" id="disp-sp-mean-payoff">$0.00</div>
+            <div class="metric-sub" id="disp-sp-games-count">0 games played</div>
+          </div>
+        </div>
+
+        <div class="canvas-panel">
+          <div class="panel-header">
+            <span class="panel-title">Repeated St. Petersburg Wealth Trajectory & Empirical Payoffs</span>
+            <div class="panel-actions">
+              <span id="tooltip-sp">Hover chart to inspect details</span>
+            </div>
+          </div>
+          <canvas id="canvas-stpetersburg" width="850" height="360"></canvas>
+          <div class="legend-bar">
+            <div class="legend-item"><span class="legend-swatch" style="background: var(--c-custom);"></span> Gambler Bankroll $W_t$</div>
+            <div class="legend-item"><span class="legend-swatch" style="background: #000; border-top: 1px dashed #000; height:0;"></span> Initial Wealth $W_0$</div>
+            <div class="legend-item"><span class="legend-swatch" style="background: var(--c-kelly);"></span> Big Win Occurrences ($k \ge 5$)</div>
+          </div>
+        </div>
+
+        <table border="1">
+          <thead>
+            <tr>
+              <th>Bankroll ($W_0$)</th>
+              <th>Log Utility Fair Price $C(W_0)$</th>
+              <th>Fraction of Wealth ($C/W_0$)</th>
+              <th>Finite Cap $2^{20}$ Expected Value</th>
+              <th>Recommendation</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-sp-fair-prices">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-ergodicity-lab" class="tab-content">
+    <div class="grid-2col">
+      <div>
+        <fieldset>
+          <legend>Ensemble Experiment Configuration</legend>
+          <div class="control-row">
+            <label for="inp-ens-p">Win Probability ($p$):</label>
+            <input type="number" id="inp-ens-p" min="0.01" max="0.99" step="0.01" value="0.55" onchange="syncControls('p', this.value)">
+          </div>
+          <div class="control-row">
+            <label for="inp-ens-b">Payoff Odds ($b$):</label>
+            <input type="number" id="inp-ens-b" min="0.1" max="10" step="0.1" value="1.0" onchange="syncControls('b', this.value)">
+          </div>
+          <div class="control-row">
+            <label for="inp-ens-f">Bet Fraction ($f$):</label>
+            <input type="number" id="inp-ens-f" min="0.01" max="0.99" step="0.01" value="0.25">
+          </div>
+          <div class="control-row">
+            <label for="inp-ens-paths">Number of Gamblers ($N$):</label>
+            <input type="number" id="inp-ens-paths" min="10" max="2000" step="50" value="500">
+          </div>
+          <div class="control-row">
+            <label for="inp-ens-t">Time Steps ($T$):</label>
+            <input type="number" id="inp-ens-t" min="10" max="2000" step="10" value="200">
+          </div>
+
+          <div class="btn-group">
+            <button class="btn-primary" onclick="runEnsembleExperiment()">Run $N$-Gambler Ensemble</button>
+            <button onclick="applyEnsembleRuinPreset()">Load Over-Bet Paradox Demo</button>
+          </div>
+        </fieldset>
+
+        <div class="info-box">
+          <h4>The Non-Ergodic Illusion</h4>
+          When a system is non-ergodic, the <em>Ensemble Average</em> $\langle W(t) \rangle = \frac{1}{N} \sum_{i=1}^N W_i(t)$ does NOT equal the <em>Time Average</em> $\overline{W} = \lim_{T \to \infty} \frac{1}{T} \int W(t) dt$.
+          <br><br>
+          In multiplicative betting with $f > f_c$:
+          <ul style="margin-left: 16px; margin-top: 4px; font-size: 11.5px;">
+            <li><strong>Ensemble Mean:</strong> $\mathbb{E}[W_T] \to \infty$ (dragged upward by a single billionaire outlier).</li>
+            <li><strong>Individual Median:</strong> $\text{Median}(W_T) \to 0$ (99.9% of players are completely wiped out).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div>
+        <div class="canvas-panel">
+          <div class="panel-header">
+            <span class="panel-title">Ensemble Average vs Individual Trajectories (Log Scale)</span>
+            <div class="panel-actions">
+              <span id="tooltip-ens">Hover to inspect ensemble stats</span>
+            </div>
+          </div>
+          <canvas id="canvas-ensemble" width="850" height="380"></canvas>
+          <div class="legend-bar">
+            <div class="legend-item"><span class="legend-swatch" style="background: rgba(100, 116, 139, 0.25);"></span> Individual Gamblers ($N$ paths)</div>
+            <div class="legend-item"><span class="legend-swatch" style="background: #2563eb; height: 3px;"></span> Ensemble Mean $\langle W_t \rangle$</div>
+            <div class="legend-item"><span class="legend-swatch" style="background: #dc2626; height: 3px;"></span> Median Gambler $\text{Med}(W_t)$</div>
+            <div class="legend-item"><span class="legend-swatch" style="background: #16a34a; border-top: 2px dashed #16a34a; height: 0;"></span> Full Kelly Growth Path</div>
+          </div>
+        </div>
+
+        <div class="metric-grid">
+          <div class="metric-card">
+            <div class="metric-label">Ensemble Mean Wealth</div>
+            <div class="metric-value" id="disp-ens-mean" style="color: #2563eb;">$0</div>
+            <div class="metric-sub">Arithmetic Average</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Median Gambler Wealth</div>
+            <div class="metric-value" id="disp-ens-median" style="color: #dc2626;">$0</div>
+            <div class="metric-sub">50th Percentile</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Bankrupt / Ruined (%)</div>
+            <div class="metric-value" id="disp-ens-ruin-pct" style="color: #dc2626;">0.0%</div>
+            <div class="metric-sub">Wealth &le; 1% of $W_0$</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Richest Player Share</div>
+            <div class="metric-value" id="disp-ens-top-share">0.0%</div>
+            <div class="metric-sub">% of total universe wealth</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function renderMath(target) {
+      if (window.renderMathInElement) {
+        try {
+          renderMathInElement(target || document.body, {
+            delimiters: [
+              { left: '$$', right: '$$', display: true },
+              { left: '$', right: '$', display: false }
+            ],
+            throwOnError: false
+          });
+        } catch (e) {}
+      }
+    }
+
+    const KellyMath = {
+      expectedLogGrowth(f, p, b) {
+        if (f <= 0) return 0;
+        if (f >= 1) return -Infinity;
+        const term1 = 1 + b * f;
+        const term2 = 1 - f;
+        if (term1 <= 0 || term2 <= 0) return -Infinity;
+        return p * Math.log(term1) + (1 - p) * Math.log(term2);
+      },
+
+      optimalKelly(p, b) {
+        const edge = p * (b + 1) - 1;
+        if (edge <= 0) return 0;
+        const fStar = edge / b;
+        return Math.min(Math.max(fStar, 0), 0.999);
+      },
+
+      criticalRuinFraction(p, b) {
+        const fStar = this.optimalKelly(p, b);
+        if (fStar <= 0) return 0;
+
+        let low = fStar;
+        let high = 0.9999;
+        if (this.expectedLogGrowth(high, p, b) > 0) return high;
+
+        for (let iter = 0; iter < 40; iter++) {
+          const mid = (low + high) / 2;
+          const gMid = this.expectedLogGrowth(mid, p, b);
+          if (gMid > 0) {
+            low = mid;
+          } else {
+            high = mid;
+          }
+        }
+        return (low + high) / 2;
+      },
+
+      doublingTime(g) {
+        if (g <= 0) return Infinity;
+        return Math.log(2) / g;
+      },
+
+      stPetersburgFairPrice(W0, maxK = 35) {
+        if (W0 <= 0) return 0;
+        const targetUtil = Math.log(W0);
+
+        const calcUtil = (C) => {
+          let sum = 0;
+          for (let k = 1; k <= maxK; k++) {
+            const prob = Math.pow(0.5, k);
+            const payoff = Math.pow(2, k);
+            const finalWealth = W0 - C + payoff;
+            if (finalWealth <= 0) {
+              sum += prob * -1e6;
+            } else {
+              sum += prob * Math.log(finalWealth);
+            }
+          }
+          return sum;
+        };
+
+        let low = 0;
+        let high = W0 * 0.9999;
+        for (let iter = 0; iter < 40; iter++) {
+          const mid = (low + high) / 2;
+          const u = calcUtil(mid);
+          if (u > targetUtil) {
+            low = mid;
+          } else {
+            high = mid;
+          }
+        }
+        return (low + high) / 2;
+      }
+    };
+
+    const State = {
+      p: 0.60,
+      b: 1.0,
+      customF: 0.30,
+      steps: 500,
+      W0: 1000,
+      flatBet: 50,
+
+      trajectories: {},
+      stepIndex: 0,
+      autoPlayTimer: null,
+
+      sp: {
+        cost: 25,
+        W0: 1000,
+        currentW: 1000,
+        cap: '20',
+        rounds: 500,
+        history: [],
+        maxPayoff: 0,
+        maxK: 0,
+        totalPayoff: 0,
+        gamesPlayed: 0
+      },
+
+      ensemble: {
+        paths: [],
+        meanPath: [],
+        medianPath: [],
+        ruinPct: 0,
+        topShare: 0
+      }
+    };
+
+    class ChartCanvas {
+      constructor(canvasId) {
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas.getContext('2d');
+        this.dpr = window.devicePixelRatio || 1;
+        this.setupDPI();
+      }
+
+      setupDPI() {
+        const rect = this.canvas.getBoundingClientRect();
+        this.cssWidth = rect.width || this.canvas.width;
+        this.cssHeight = rect.height || this.canvas.height;
+        this.canvas.width = this.cssWidth * this.dpr;
+        this.canvas.height = this.cssHeight * this.dpr;
+        this.ctx.resetTransform?.();
+        this.ctx.scale(this.dpr, this.dpr);
+      }
+
+      clear() {
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.fillRect(0, 0, this.cssWidth, this.cssHeight);
+      }
+
+      drawAxes(bounds, pad = { top: 25, right: 30, bottom: 35, left: 65 }) {
+        const { minX, maxX, minY, maxY, xLabel, yLabel, isXPercent, isYPercent } = bounds;
+        const { top, right, bottom, left } = pad;
+        const plotW = this.cssWidth - left - right;
+        const plotH = this.cssHeight - top - bottom;
+        const ctx = this.ctx;
+
+        ctx.fillStyle = '#fcfdfe';
+        ctx.fillRect(left, top, plotW, plotH);
+
+        ctx.strokeStyle = '#2d3748';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(left, top, plotW, plotH);
+
+        const toX = (x) => left + ((x - minX) / (maxX - minX || 1)) * plotW;
+        const toY = (y) => top + (1 - (y - minY) / (maxY - minY || 1)) * plotH;
+
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.fillStyle = '#555555';
+        ctx.font = '10.5px ui-monospace, Consolas, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+
+        const numXTicks = isXPercent ? 10 : 8;
+        for (let i = 0; i <= numXTicks; i++) {
+          const val = minX + (i / numXTicks) * (maxX - minX);
+          const px = toX(val);
+          ctx.beginPath();
+          ctx.moveTo(px, top);
+          ctx.lineTo(px, top + plotH);
+          ctx.stroke();
+
+          if (isXPercent) {
+            ctx.fillText((val * 100).toFixed(0) + '%', px, top + plotH + 6);
+          } else {
+            ctx.fillText(Number(val.toFixed(2)).toString(), px, top + plotH + 6);
+          }
+        }
+
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        const numYTicks = 7;
+        for (let i = 0; i <= numYTicks; i++) {
+          const val = minY + (i / numYTicks) * (maxY - minY);
+          const py = toY(val);
+          ctx.beginPath();
+          ctx.moveTo(left, py);
+          ctx.lineTo(left + plotW, py);
+          ctx.stroke();
+
+          if (isYPercent) {
+            const sign = val > 0.0001 ? '+' : '';
+            ctx.fillText(sign + (val * 100).toFixed(1) + '%', left - 8, py);
+          } else {
+            let text = Math.abs(val) >= 1000 ? val.toExponential(1) : Number(val.toFixed(2)).toString();
+            ctx.fillText(text, left - 8, py);
+          }
+        }
+
+        ctx.fillStyle = '#1a1a1a';
+        ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
+        if (xLabel) {
+          ctx.textAlign = 'center';
+          ctx.fillText(xLabel, left + plotW / 2, top + plotH + 22);
+        }
+        if (yLabel) {
+          ctx.save();
+          ctx.translate(14, top + plotH / 2);
+          ctx.rotate(-Math.PI / 2);
+          ctx.textAlign = 'center';
+          ctx.fillText(yLabel, 0, 0);
+          ctx.restore();
+        }
+
+        return { toX, toY, plotW, plotH, left, top, right, bottom };
+      }
+    }
+
+    function drawCalloutBadge(ctx, x, y, title, subtitle, opts = {}) {
+      const { bgColor = '#ffffff', borderColor = '#2d3748', textColor = '#000000', align = 'center', offsetY = -34 } = opts;
+      ctx.save();
+      ctx.font = 'bold 10px ui-monospace, Consolas, monospace';
+      const titleW = ctx.measureText(title).width;
+      ctx.font = '9px ui-monospace, Consolas, monospace';
+      const subW = subtitle ? ctx.measureText(subtitle).width : 0;
+      const boxW = Math.max(titleW, subW) + 12;
+      const boxH = subtitle ? 27 : 17;
+
+      let boxX = x - boxW / 2;
+      if (align === 'left') boxX = x - boxW - 6;
+      if (align === 'right') boxX = x + 6;
+
+      boxX = Math.max(68, Math.min(840 - boxW, boxX));
+      const boxY = y + offsetY;
+
+      ctx.fillStyle = bgColor;
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 1.2;
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      if (offsetY < 0) {
+        ctx.moveTo(x, boxY + boxH);
+        ctx.lineTo(x, y - 3);
+      } else {
+        ctx.moveTo(x, boxY);
+        ctx.lineTo(x, y + 3);
+      }
+      ctx.stroke();
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = textColor;
+      ctx.font = 'bold 10px ui-monospace, Consolas, monospace';
+      ctx.fillText(title, boxX + boxW / 2, boxY + (subtitle ? 3 : 3.5));
+
+      if (subtitle) {
+        ctx.fillStyle = '#475569';
+        ctx.font = '9px ui-monospace, Consolas, monospace';
+        ctx.fillText(subtitle, boxX + boxW / 2, boxY + 14);
+      }
+      ctx.restore();
+    }
+
+    function initSimulator() {
+      updateMathCards();
+      runSimulation();
+      setupTrajectoryHover();
+    }
+
+    function updateMathCards() {
+      const p = State.p;
+      const b = State.b;
+      const fStar = KellyMath.optimalKelly(p, b);
+      const halfF = fStar / 2;
+      const gStar = KellyMath.expectedLogGrowth(fStar, p, b);
+      const fCrit = KellyMath.criticalRuinFraction(p, b);
+      const tDouble = KellyMath.doublingTime(gStar);
+
+      document.getElementById('disp-f-star').textContent = (fStar * 100).toFixed(1) + '%';
+      document.getElementById('disp-half-f').textContent = (halfF * 100).toFixed(1) + '%';
+      document.getElementById('disp-g-star').textContent = (gStar >= 0 ? '+' : '') + (gStar * 100).toFixed(2) + '%';
+      document.getElementById('disp-t-double').textContent = isFinite(tDouble) ? tDouble.toFixed(1) + ' steps' : '∞';
+      document.getElementById('disp-f-crit').textContent = (fCrit * 100).toFixed(1) + '%';
+    }
+
+    function runSimulation() {
+      const p = State.p;
+      const b = State.b;
+      const fStar = KellyMath.optimalKelly(p, b);
+      const T = parseInt(document.getElementById('inp-steps').value) || 500;
+      const W0 = parseFloat(document.getElementById('inp-w0').value) || 1000;
+      const flatBetAmt = parseFloat(document.getElementById('inp-flat').value) || 50;
+      const customF = State.customF;
+
+      State.steps = T;
+      State.W0 = W0;
+      State.flatBet = flatBetAmt;
+
+      const strategies = {
+        half: { name: 'Half Kelly ($f^*/2$)', f: fStar / 2, color: '#d97706', tag: 'tag-amber', path: [W0], logPath: [0], maxDD: 0 },
+        full: { name: 'Full Kelly ($f^*$)', f: fStar, color: '#16a34a', tag: 'tag-green', path: [W0], logPath: [0], maxDD: 0 },
+        over15: { name: '1.5x Kelly ($1.5f^*$)', f: Math.min(fStar * 1.5, 0.99), color: '#ea580c', tag: 'tag-red', path: [W0], logPath: [0], maxDD: 0 },
+        over20: { name: '2.0x Kelly ($2f^*$)', f: Math.min(fStar * 2.0, 0.99), color: '#dc2626', tag: 'tag-red', path: [W0], logPath: [0], maxDD: 0 },
+        custom: { name: `Custom ($f=${(customF*100).toFixed(0)}\\%$)`, f: customF, color: '#2563eb', tag: 'tag-blue', path: [W0], logPath: [0], maxDD: 0 },
+        flat: { name: `Flat Bet ($K=\\$${flatBetAmt}$)`, f: null, color: '#64748b', tag: '', path: [W0], logPath: [0], maxDD: 0 }
+      };
+
+      const outcomes = [];
+      for (let t = 0; t < T; t++) {
+        outcomes.push(Math.random() < p);
+      }
+
+      for (let key in strategies) {
+        const strat = strategies[key];
+        let currentW = W0;
+        let peakW = W0;
+        let maxDD = 0;
+
+        for (let t = 0; t < T; t++) {
+          const win = outcomes[t];
+          if (strat.f !== null) {
+            const bet = currentW * strat.f;
+            if (currentW > 1e-7) {
+              currentW = win ? currentW + bet * b : currentW - bet;
+            } else {
+              currentW = 0;
+            }
+          } else {
+            if (currentW > 0) {
+              const actualBet = Math.min(currentW, flatBetAmt);
+              currentW = win ? currentW + actualBet * b : currentW - actualBet;
+            } else {
+              currentW = 0;
+            }
+          }
+
+          peakW = Math.max(peakW, currentW);
+          const dd = peakW > 0 ? (peakW - currentW) / peakW : 1.0;
+          if (dd > maxDD) maxDD = dd;
+
+          strat.path.push(currentW);
+          strat.logPath.push(currentW > 1e-12 ? Math.log(currentW / W0) : -30);
+        }
+        strat.maxDD = maxDD;
+      }
+
+      State.trajectories = strategies;
+      renderTrajectoryCanvas();
+      renderResultsTable();
+    }
+
+    function renderTrajectoryCanvas() {
+      const canvasObj = new ChartCanvas('canvas-trajectories');
+      canvasObj.clear();
+
+      const isLog = document.getElementById('sel-y-scale').value === 'log';
+      const T = State.steps;
+      const strats = State.trajectories;
+      if (!strats.full) return;
+
+      let minY = 0, maxY = 0;
+      if (isLog) {
+        minY = -4;
+        maxY = 4;
+        for (let k in strats) {
+          strats[k].logPath.forEach(v => {
+            if (v > -25) {
+              if (v < minY) minY = v;
+              if (v > maxY) maxY = v;
+            }
+          });
+        }
+        minY = Math.floor(minY) - 0.5;
+        maxY = Math.ceil(maxY) + 0.5;
+      } else {
+        minY = 0;
+        maxY = State.W0 * 3;
+        for (let k in strats) {
+          strats[k].path.forEach(v => {
+            if (v > maxY) maxY = v;
+          });
+        }
+        maxY = maxY * 1.1;
+      }
+
+      const { toX, toY, left, top, plotW, plotH } = canvasObj.drawAxes({
+        minX: 0,
+        maxX: T,
+        minY: minY,
+        maxY: maxY,
+        xLabel: 'Time Steps (t)',
+        yLabel: isLog ? 'Log Wealth Growth ln(W_t / W_0)' : 'Nominal Wealth W_t ($)'
+      });
+
+      const ctx = canvasObj.ctx;
+
+      const baselineY = isLog ? toY(0) : toY(State.W0);
+      ctx.strokeStyle = '#94a3b8';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(left, baselineY);
+      ctx.lineTo(left + plotW, baselineY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (isLog) {
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([3, 3]);
+        for (let k in strats) {
+          const strat = strats[k];
+          if (strat.f !== null) {
+            const gTheor = KellyMath.expectedLogGrowth(strat.f, State.p, State.b);
+            if (isFinite(gTheor)) {
+              ctx.strokeStyle = strat.color;
+              ctx.beginPath();
+              ctx.moveTo(toX(0), toY(0));
+              ctx.lineTo(toX(T), toY(T * gTheor));
+              ctx.stroke();
+            }
+          }
+        }
+        ctx.setLineDash([]);
+      }
+
+      for (let k in strats) {
+        const strat = strats[k];
+        const data = isLog ? strat.logPath : strat.path;
+        ctx.strokeStyle = strat.color;
+        ctx.lineWidth = (k === 'full' || k === 'custom') ? 2.2 : 1.4;
+        ctx.beginPath();
+
+        for (let t = 0; t <= T; t++) {
+          const val = Math.max(data[t], isLog ? -25 : 0);
+          const px = toX(t);
+          const py = toY(val);
+          if (t === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+
+      State.canvasBounds = { toX, toY, left, top, plotW, plotH, minX: 0, maxX: T, minY, maxY, isLog };
+    }
+
+    function renderResultsTable() {
+      const tbody = document.getElementById('tbody-results');
+      tbody.innerHTML = '';
+      const strats = State.trajectories;
+      const T = State.steps;
+      const W0 = State.W0;
+
+      for (let k in strats) {
+        const s = strats[k];
+        const finalW = s.path[T];
+        const empiricalG = (1 / T) * Math.log(Math.max(finalW, 1e-12) / W0);
+        const theorG = s.f !== null ? KellyMath.expectedLogGrowth(s.f, State.p, State.b) : NaN;
+
+        let statusTag = '<span class="tag tag-green">GROWING</span>';
+        if (finalW <= W0 * 0.05) {
+          statusTag = '<span class="badge-ruin">RUINED / BROKE</span>';
+        } else if (finalW < W0) {
+          statusTag = '<span class="tag tag-red">UNDER WATER</span>';
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong><span style="color:${s.color}">■</span> ${s.name}</strong></td>
+          <td>${s.f !== null ? (s.f * 100).toFixed(1) + '%' : '$' + State.flatBet}</td>
+          <td>${!isNaN(theorG) ? (theorG >= 0 ? '+' : '') + (theorG * 100).toFixed(2) + '%' : 'N/A'}</td>
+          <td style="font-weight: bold; color: ${finalW >= W0 ? '#16a34a' : '#dc2626'}">$${finalW.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td>${(empiricalG >= 0 ? '+' : '') + (empiricalG * 100).toFixed(2)}%</td>
+          <td style="color:#b91c1c;">${(s.maxDD * 100).toFixed(1)}%</td>
+          <td>${statusTag}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+      renderMath(tbody);
+    }
+
+    function setupTrajectoryHover() {
+      const canvas = document.getElementById('canvas-trajectories');
+      const tooltip = document.getElementById('tooltip-display');
+
+      canvas.addEventListener('mousemove', (e) => {
+        if (!State.canvasBounds) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const { left, plotW, minX, maxX } = State.canvasBounds;
+
+        if (mouseX >= left && mouseX <= left + plotW) {
+          const t = Math.round(minX + ((mouseX - left) / plotW) * (maxX - minX));
+          const strats = State.trajectories;
+          if (strats.full && strats.full.path[t] !== undefined) {
+            const wHalf = strats.half.path[t].toFixed(1);
+            const wFull = strats.full.path[t].toFixed(1);
+            const wOver = strats.over20.path[t].toFixed(1);
+            const wCust = strats.custom.path[t].toFixed(1);
+            tooltip.innerHTML = `Step <strong>t=${t}</strong> | Half: $${wHalf} | Full: <strong style="color:var(--c-kelly);">$${wFull}</strong> | 2x Kelly: <strong style="color:var(--c-over);">$${wOver}</strong> | Custom: $${wCust}`;
+          }
+        }
+      });
+    }
+
+    function toggleAutoStep() {
+      const btn = document.getElementById('btn-auto');
+      if (State.autoPlayTimer) {
+        clearInterval(State.autoPlayTimer);
+        State.autoPlayTimer = null;
+        btn.textContent = 'Auto-Play Step';
+      } else {
+        btn.textContent = '⏸ Pause';
+        State.autoPlayTimer = setInterval(() => {
+          runSimulation();
+        }, 600);
+      }
+    }
+
+    function resetSimulation() {
+      if (State.autoPlayTimer) toggleAutoStep();
+      runSimulation();
+    }
+
+    function renderGrowthCurve() {
+      const canvasObj = new ChartCanvas('canvas-growth');
+      canvasObj.clear();
+
+      const p = State.p;
+      const b = State.b;
+      const fStar = KellyMath.optimalKelly(p, b);
+      const fCrit = KellyMath.criticalRuinFraction(p, b);
+      const customF = State.customF;
+      const isFocused = (document.getElementById('sel-gc-zoom')?.value || 'focused') === 'focused';
+
+      const gStar = KellyMath.expectedLogGrowth(fStar, p, b);
+      const halfF = fStar / 2;
+      const gHalf = KellyMath.expectedLogGrowth(halfF, p, b);
+      const gCust = KellyMath.expectedLogGrowth(customF, p, b);
+
+      let maxG, minG;
+      if (isFocused) {
+        maxG = Math.max(gStar * 1.55, 0.025);
+        minG = -Math.max(gStar * 2.2, 0.035);
+      } else {
+        maxG = Math.max(gStar * 1.4, 0.05);
+        minG = -0.30;
+      }
+
+      const { toX, toY, left, top, plotW, plotH } = canvasObj.drawAxes({
+        minX: 0,
+        maxX: 1.0,
+        minY: minG,
+        maxY: maxG,
+        xLabel: 'Bet Fraction (f)',
+        yLabel: 'Expected Log Growth Rate g(f) / step',
+        isXPercent: true,
+        isYPercent: true
+      });
+
+      const ctx = canvasObj.ctx;
+
+      if (fCrit > 0) {
+        const x0 = toX(0);
+        const xCrit = toX(Math.min(fCrit, 1.0));
+        ctx.fillStyle = 'rgba(22, 163, 74, 0.05)';
+        ctx.fillRect(x0, top, xCrit - x0, plotH);
+      }
+
+      if (fCrit > 0 && fCrit < 1.0) {
+        const xCrit = toX(fCrit);
+        ctx.fillStyle = 'rgba(220, 38, 38, 0.10)';
+        ctx.fillRect(xCrit, top, left + plotW - xCrit, plotH);
+
+        ctx.fillStyle = '#dc2626';
+        ctx.font = 'bold 10.5px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('RUIN ZONE: g(f) < 0 (Asymptotic Bankruptcy)', (xCrit + left + plotW) / 2, top + 16);
+      }
+
+      const yZero = toY(0);
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(left, yZero);
+      ctx.lineTo(left + plotW, yZero);
+      ctx.stroke();
+
+      const points = [];
+      for (let f = 0; f <= 0.99; f += 0.002) {
+        const g = KellyMath.expectedLogGrowth(f, p, b);
+        points.push({ f, g });
+      }
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(left, top, plotW, plotH);
+      ctx.clip();
+
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 2.8;
+      ctx.beginPath();
+      let started = false;
+      for (const pt of points) {
+        if (!isFinite(pt.g)) continue;
+        const px = toX(pt.f);
+        const py = toY(pt.g);
+        if (!started) { ctx.moveTo(px, py); started = true; }
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.setLineDash([3, 3]);
+      ctx.lineWidth = 1;
+
+      ctx.strokeStyle = '#16a34a';
+      ctx.beginPath();
+      ctx.moveTo(toX(fStar), toY(gStar));
+      ctx.lineTo(toX(fStar), top + plotH);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#d97706';
+      ctx.beginPath();
+      ctx.moveTo(toX(halfF), toY(gHalf));
+      ctx.lineTo(toX(halfF), top + plotH);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#2563eb';
+      ctx.beginPath();
+      ctx.moveTo(toX(customF), toY(Math.max(gCust, minG)));
+      ctx.lineTo(toX(customF), top + plotH);
+      ctx.stroke();
+      ctx.restore();
+
+      const drawNode = (x, y, color) => {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      };
+
+      drawNode(toX(halfF), toY(gHalf), '#d97706');
+      drawNode(toX(fStar), toY(gStar), '#16a34a');
+      if (fCrit > 0 && fCrit < 1) drawNode(toX(fCrit), toY(0), '#dc2626');
+      drawNode(toX(customF), toY(Math.max(gCust, minG)), '#2563eb');
+
+      drawCalloutBadge(
+        ctx,
+        toX(fStar),
+        toY(gStar),
+        `Optimal f* = ${(fStar * 100).toFixed(1)}%`,
+        `Max g* = +${(gStar * 100).toFixed(2)}%/step`,
+        { bgColor: '#f0fdf4', borderColor: '#16a34a', textColor: '#15803d', offsetY: -38, align: 'center' }
+      );
+
+      drawCalloutBadge(
+        ctx,
+        toX(halfF),
+        toY(gHalf),
+        `Half-Kelly: ${(halfF * 100).toFixed(1)}%`,
+        `g = +${(gHalf * 100).toFixed(2)}%`,
+        { bgColor: '#fffbeb', borderColor: '#d97706', textColor: '#b45309', offsetY: -38, align: 'left' }
+      );
+
+      if (fCrit > 0 && fCrit < 1) {
+        drawCalloutBadge(
+          ctx,
+          toX(fCrit),
+          toY(0),
+          `Ruin Boundary fc = ${(fCrit * 100).toFixed(1)}%`,
+          `Zero Growth (g = 0.0%)`,
+          { bgColor: '#fef2f2', borderColor: '#dc2626', textColor: '#b91c1c', offsetY: 12, align: 'right' }
+        );
+      }
+
+      const isRightOfPeak = customF >= fStar;
+      drawCalloutBadge(
+        ctx,
+        toX(customF),
+        toY(Math.max(gCust, minG)),
+        `Selected f = ${(customF * 100).toFixed(0)}%`,
+        `g(f) = ${(gCust * 100).toFixed(2)}%/step`,
+        { bgColor: '#eff6ff', borderColor: '#2563eb', textColor: '#1d4ed8', offsetY: -38, align: isRightOfPeak ? 'right' : 'left' }
+      );
+
+      State.growthCanvasBounds = { toX, toY, left, top, plotW, plotH, minX: 0, maxX: 1.0, minY, maxY };
+      renderGrowthMetricsTable();
+    }
+
+    function setupGrowthCanvasHover() {
+      const canvas = document.getElementById('canvas-growth');
+      const tooltip = document.getElementById('tooltip-growth');
+      if (!canvas || !tooltip) return;
+
+      canvas.addEventListener('mousemove', (e) => {
+        if (!State.growthCanvasBounds) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const { left, plotW, minX, maxX } = State.growthCanvasBounds;
+
+        if (mouseX >= left && mouseX <= left + plotW) {
+          const f = Math.max(0, Math.min(0.99, minX + ((mouseX - left) / plotW) * (maxX - minX)));
+          const g = KellyMath.expectedLogGrowth(f, State.p, State.b);
+          const fStar = KellyMath.optimalKelly(State.p, State.b);
+          const fCrit = KellyMath.criticalRuinFraction(State.p, State.b);
+
+          let regime = 'Suboptimal Under-betting';
+          let color = '#d97706';
+          if (Math.abs(f - fStar) < 0.012) {
+            regime = 'Global Optimal Peak';
+            color = '#16a34a';
+          } else if (f > fStar && f < fCrit) {
+            regime = 'Over-betting (Volatility Drag)';
+            color = '#ea580c';
+          } else if (f >= fCrit) {
+            regime = 'Ruin Zone (Bankruptcy)';
+            color = '#dc2626';
+          }
+
+          tooltip.innerHTML = `Fraction <strong>f = ${(f * 100).toFixed(1)}%</strong> | Growth <strong>g(f) = ${isFinite(g) ? (g * 100).toFixed(2) + '%/step' : '-∞'}</strong> | <span style="font-weight:700; color:${color};">${regime}</span>`;
+        }
+      });
+
+      canvas.addEventListener('mouseleave', () => {
+        tooltip.innerHTML = 'Hover over curve to inspect values';
+      });
+    }
+
+    function renderGrowthMetricsTable() {
+      const p = State.p;
+      const b = State.b;
+      const fStar = KellyMath.optimalKelly(p, b);
+      const gStar = KellyMath.expectedLogGrowth(fStar, p, b);
+      const halfF = fStar / 2;
+      const gHalf = KellyMath.expectedLogGrowth(halfF, p, b);
+      const fCrit = KellyMath.criticalRuinFraction(p, b);
+      const customF = State.customF;
+      const gCustom = KellyMath.expectedLogGrowth(customF, p, b);
+
+      const tbody = document.getElementById('tbody-growth-metrics');
+      tbody.innerHTML = `
+        <tr>
+          <td><strong style="color:var(--c-half);">Half Kelly ($f^*/2$)</strong></td>
+          <td>${(halfF*100).toFixed(1)}%</td>
+          <td>+${(gHalf*100).toFixed(2)}% / step</td>
+          <td>-</td>
+          <td>${gStar > 0 ? ((gHalf/gStar)*100).toFixed(1) + '% max growth (50% volatility drag)' : '0%'}</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--c-kelly);">Full Kelly ($f^*$)</strong></td>
+          <td>${(fStar*100).toFixed(1)}%</td>
+          <td>+${(gStar*100).toFixed(2)}% / step</td>
+          <td>-</td>
+          <td>100.0% (Theoretical Maximum Compound Rate)</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#ea580c;">1.5x Kelly (Over-Betting)</strong></td>
+          <td>${(Math.min(fStar*1.5, 0.99)*100).toFixed(1)}%</td>
+          <td>+${(KellyMath.expectedLogGrowth(Math.min(fStar*1.5, 0.99), p, b)*100).toFixed(2)}% / step</td>
+          <td>${(halfF*100).toFixed(1)}%</td>
+          <td>Suboptimal (Same growth as ${(halfF*100).toFixed(1)}% with ~3x drawdown risk)</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--c-over);">Critical Ruin Boundary ($f_c$)</strong></td>
+          <td>${(fCrit*100).toFixed(1)}%</td>
+          <td>0.00% / step</td>
+          <td>0.0% (Cash)</td>
+          <td><span class="badge-ruin">ZERO ASYMPTOTIC GROWTH</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--c-custom);">Selected Custom Fraction</strong></td>
+          <td>${(customF*100).toFixed(1)}%</td>
+          <td style="color:${gCustom>=0?'#16a34a':'#dc2626'}">${(gCustom*100).toFixed(2)}% / step</td>
+          <td>-</td>
+          <td>${gStar > 0 ? ((gCustom/gStar)*100).toFixed(1) + '%' : 'N/A'}</td>
+        </tr>
+      `;
+      renderMath(tbody);
+    }
+
+    function initStPetersburg() {
+      updateFairPriceTable();
+      renderStPetersburgCanvas();
+    }
+
+    function playSingleStPetersburgRound() {
+      const sp = State.sp;
+      const cost = parseFloat(document.getElementById('inp-sp-cost').value) || 25;
+      const capVal = document.getElementById('inp-sp-cap').value;
+      const maxCap = capVal === 'none' ? Infinity : Math.pow(2, parseInt(capVal));
+
+      let k = 0;
+      let flipStr = '';
+      while (true) {
+        k++;
+        const isHeads = Math.random() < 0.5;
+        flipStr += isHeads ? 'H ' : 'T';
+        if (!isHeads) break;
+        if (k >= 40) break;
+      }
+
+      let rawPayoff = Math.pow(2, k);
+      let payout = Math.min(rawPayoff, maxCap);
+
+      sp.currentW = sp.currentW - cost + payout;
+      sp.gamesPlayed++;
+      sp.totalPayoff += payout;
+      if (payout > sp.maxPayoff) {
+        sp.maxPayoff = payout;
+        sp.maxK = k;
+      }
+
+      sp.history.push({
+        round: sp.gamesPlayed,
+        k: k,
+        payoff: payout,
+        wealth: sp.currentW
+      });
+
+      const coinBox = document.getElementById('sp-coin-text');
+      coinBox.innerHTML = `Round #${sp.gamesPlayed}: Flips = [<strong>${flipStr}</strong>] &rarr; <strong>k = ${k}</strong> flips! Payoff = <strong>$${payout.toLocaleString()}</strong> (Net: ${payout >= cost ? '+' : ''}$${(payout - cost).toLocaleString()})`;
+
+      updateStPetersburgStats();
+      renderStPetersburgCanvas();
+    }
+
+    function runStPetersburgSim() {
+      const sp = State.sp;
+      const rounds = parseInt(document.getElementById('inp-sp-rounds').value) || 500;
+      const cost = parseFloat(document.getElementById('inp-sp-cost').value) || 25;
+      const capVal = document.getElementById('inp-sp-cap').value;
+      const maxCap = capVal === 'none' ? Infinity : Math.pow(2, parseInt(capVal));
+
+      for (let r = 0; r < rounds; r++) {
+        let k = 0;
+        while (true) {
+          k++;
+          const isHeads = Math.random() < 0.5;
+          if (!isHeads) break;
+          if (k >= 40) break;
+        }
+
+        const rawPayoff = Math.pow(2, k);
+        const payout = Math.min(rawPayoff, maxCap);
+        sp.currentW = sp.currentW - cost + payout;
+        sp.gamesPlayed++;
+        sp.totalPayoff += payout;
+        if (payout > sp.maxPayoff) {
+          sp.maxPayoff = payout;
+          sp.maxK = k;
+        }
+
+        sp.history.push({
+          round: sp.gamesPlayed,
+          k: k,
+          payoff: payout,
+          wealth: sp.currentW
+        });
+      }
+
+      updateStPetersburgStats();
+      renderStPetersburgCanvas();
+    }
+
+    function resetStPetersburg() {
+      const W0 = parseFloat(document.getElementById('inp-sp-w0').value) || 1000;
+      State.sp.W0 = W0;
+      State.sp.currentW = W0;
+      State.sp.gamesPlayed = 0;
+      State.sp.totalPayoff = 0;
+      State.sp.maxPayoff = 0;
+      State.sp.maxK = 0;
+      State.sp.history = [];
+      document.getElementById('sp-coin-text').textContent = 'Bankroll reset to $' + W0;
+      updateStPetersburgStats();
+      renderStPetersburgCanvas();
+    }
+
+    function updateStPetersburgStats() {
+      const sp = State.sp;
+      const W0 = sp.W0;
+      const fairC = KellyMath.stPetersburgFairPrice(W0);
+
+      document.getElementById('disp-sp-wealth').textContent = '$' + sp.currentW.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const roi = W0 > 0 ? ((sp.currentW - W0) / W0) * 100 : 0;
+      document.getElementById('disp-sp-roi').textContent = `${roi >= 0 ? '+' : ''}${roi.toFixed(1)}% total return`;
+
+      document.getElementById('disp-sp-max-payoff').textContent = '$' + sp.maxPayoff.toLocaleString();
+      document.getElementById('disp-sp-max-k').textContent = `Max sequence: k = ${sp.maxK} flips`;
+      document.getElementById('disp-sp-fair-c').textContent = '$' + fairC.toFixed(2);
+
+      const meanPay = sp.gamesPlayed > 0 ? sp.totalPayoff / sp.gamesPlayed : 0;
+      document.getElementById('disp-sp-mean-payoff').textContent = '$' + meanPay.toFixed(2);
+      document.getElementById('disp-sp-games-count').textContent = `${sp.gamesPlayed} games played`;
+    }
+
+    function renderStPetersburgCanvas() {
+      const canvasObj = new ChartCanvas('canvas-stpetersburg');
+      canvasObj.clear();
+
+      const history = State.sp.history;
+      const W0 = State.sp.W0;
+      const N = history.length > 0 ? history.length : 100;
+
+      let minY = 0;
+      let maxY = W0 * 2;
+      history.forEach(h => {
+        if (h.wealth > maxY) maxY = h.wealth;
+        if (h.wealth < minY) minY = h.wealth;
+      });
+      maxY = Math.max(maxY, W0 * 1.2);
+
+      const { toX, toY, left, top, plotW, plotH } = canvasObj.drawAxes({
+        minX: 0,
+        maxX: N,
+        minY: minY,
+        maxY: maxY,
+        xLabel: 'Lottery Games Played (Rounds)',
+        yLabel: 'Gambler Wealth W_t ($)'
+      });
+
+      const ctx = canvasObj.ctx;
+
+      const pyW0 = toY(W0);
+      ctx.strokeStyle = '#94a3b8';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(left, pyW0);
+      ctx.lineTo(left + plotW, pyW0);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (history.length === 0) return;
+
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(toX(0), toY(W0));
+      for (let i = 0; i < history.length; i++) {
+        const px = toX(i + 1);
+        const py = toY(history[i].wealth);
+        ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+
+      for (let i = 0; i < history.length; i++) {
+        if (history[i].k >= 5) {
+          const px = toX(i + 1);
+          const py = toY(history[i].wealth);
+          ctx.fillStyle = '#16a34a';
+          ctx.beginPath();
+          ctx.arc(px, py, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    function updateFairPriceTable() {
+      const wealthLevels = [10, 100, 1000, 10000, 100000, 1000000];
+      const tbody = document.getElementById('tbody-sp-fair-prices');
+      tbody.innerHTML = '';
+
+      wealthLevels.forEach(w => {
+        const cVal = KellyMath.stPetersburgFairPrice(w);
+        const frac = (cVal / w) * 100;
+        const capVal = 1 + 20 / 2;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>$${w.toLocaleString()}</strong></td>
+          <td style="color:var(--c-kelly); font-weight:bold;">$${cVal.toFixed(2)}</td>
+          <td>${frac.toFixed(2)}%</td>
+          <td>$${capVal.toFixed(2)}</td>
+          <td>${cVal < 20 ? 'Max rational entry fee is strictly modest' : 'High bankroll tolerates larger ticket fee'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      renderMath(tbody);
+    }
+
+    function runEnsembleExperiment() {
+      const p = parseFloat(document.getElementById('inp-ens-p').value) || 0.55;
+      const b = parseFloat(document.getElementById('inp-ens-b').value) || 1.0;
+      const f = parseFloat(document.getElementById('inp-ens-f').value) || 0.25;
+      const N = parseInt(document.getElementById('inp-ens-paths').value) || 500;
+      const T = parseInt(document.getElementById('inp-ens-t').value) || 200;
+      const W0 = 1000;
+
+      const paths = [];
+      const meanPath = new Array(T + 1).fill(0);
+      const medianPath = new Array(T + 1).fill(0);
+
+      for (let i = 0; i < N; i++) {
+        paths.push([W0]);
+      }
+      meanPath[0] = W0;
+      medianPath[0] = W0;
+
+      for (let t = 1; t <= T; t++) {
+        let sumW = 0;
+        const currentSlice = [];
+
+        for (let i = 0; i < N; i++) {
+          const prevW = paths[i][t - 1];
+          let nextW = 0;
+          if (prevW > 1e-12) {
+            const win = Math.random() < p;
+            const bet = prevW * f;
+            nextW = win ? prevW + bet * b : prevW - bet;
+          }
+          paths[i].push(nextW);
+          sumW += nextW;
+          currentSlice.push(nextW);
+        }
+
+        meanPath[t] = sumW / N;
+        currentSlice.sort((a, b) => a - b);
+        medianPath[t] = currentSlice[Math.floor(N / 2)];
+      }
+
+      let ruinedCount = 0;
+      let totalUniverseW = 0;
+      let maxIndividualW = 0;
+
+      for (let i = 0; i < N; i++) {
+        const finalW = paths[i][T];
+        totalUniverseW += finalW;
+        if (finalW > maxIndividualW) maxIndividualW = finalW;
+        if (finalW <= W0 * 0.05) ruinedCount++;
+      }
+
+      const ruinPct = (ruinedCount / N) * 100;
+      const topShare = totalUniverseW > 0 ? (maxIndividualW / totalUniverseW) * 100 : 0;
+
+      State.ensemble = { paths, meanPath, medianPath, ruinPct, topShare, N, T, W0, p, b, f };
+
+      document.getElementById('disp-ens-mean').textContent = '$' + meanPath[T].toLocaleString('en-US', { maximumFractionDigits: 0 });
+      document.getElementById('disp-ens-median').textContent = '$' + medianPath[T].toLocaleString('en-US', { maximumFractionDigits: 2 });
+      document.getElementById('disp-ens-ruin-pct').textContent = ruinPct.toFixed(1) + '%';
+      document.getElementById('disp-ens-top-share').textContent = topShare.toFixed(1) + '%';
+
+      renderEnsembleCanvas();
+    }
+
+    function applyEnsembleRuinPreset() {
+      document.getElementById('inp-ens-p').value = 0.55;
+      document.getElementById('inp-ens-b').value = 1.0;
+      document.getElementById('inp-ens-f').value = 0.35;
+      document.getElementById('inp-ens-paths').value = 500;
+      document.getElementById('inp-ens-t').value = 250;
+      runEnsembleExperiment();
+    }
+
+    function renderEnsembleCanvas() {
+      const canvasObj = new ChartCanvas('canvas-ensemble');
+      canvasObj.clear();
+
+      const { paths, meanPath, medianPath, N, T, W0, p, b } = State.ensemble;
+      if (!paths || paths.length === 0) return;
+
+      let minLog = -4;
+      let maxLog = 5;
+
+      for (let i = 0; i < Math.min(N, 100); i++) {
+        for (let t = 0; t <= T; t++) {
+          const val = paths[i][t] > 1e-8 ? Math.log(paths[i][t] / W0) : -8;
+          if (val > maxLog) maxLog = val;
+          if (val < minLog && val > -10) minLog = val;
+        }
+      }
+      maxLog = Math.ceil(maxLog) + 1;
+      minLog = Math.floor(minLog) - 1;
+
+      const { toX, toY, left, top, plotW, plotH } = canvasObj.drawAxes({
+        minX: 0,
+        maxX: T,
+        minY: minLog,
+        maxY: maxLog,
+        xLabel: 'Time Steps (t)',
+        yLabel: 'Log Wealth ln(W_t / W_0)'
+      });
+
+      const ctx = canvasObj.ctx;
+
+      ctx.strokeStyle = '#94a3b8';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(left, toY(0));
+      ctx.lineTo(left + plotW, toY(0));
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.strokeStyle = 'rgba(100, 116, 139, 0.2)';
+      ctx.lineWidth = 1;
+      const drawCount = Math.min(N, 120);
+      for (let i = 0; i < drawCount; i++) {
+        ctx.beginPath();
+        for (let t = 0; t <= T; t++) {
+          const logW = paths[i][t] > 1e-8 ? Math.log(paths[i][t] / W0) : minLog;
+          const px = toX(t);
+          const py = toY(Math.max(logW, minLog));
+          if (t === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let t = 0; t <= T; t++) {
+        const logMean = meanPath[t] > 1e-8 ? Math.log(meanPath[t] / W0) : minLog;
+        const px = toX(t);
+        const py = toY(Math.max(logMean, minLog));
+        if (t === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = '#dc2626';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let t = 0; t <= T; t++) {
+        const logMed = medianPath[t] > 1e-8 ? Math.log(medianPath[t] / W0) : minLog;
+        const px = toX(t);
+        const py = toY(Math.max(logMed, minLog));
+        if (t === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+
+      const fStar = KellyMath.optimalKelly(p, b);
+      const gStar = KellyMath.expectedLogGrowth(fStar, p, b);
+      ctx.strokeStyle = '#16a34a';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(toX(0), toY(0));
+      ctx.lineTo(toX(T), toY(T * gStar));
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    function syncControls(param, val) {
+      val = parseFloat(val);
+      if (param === 'p') {
+        State.p = val;
+        document.getElementById('inp-p').value = val.toFixed(2);
+        document.getElementById('rng-p').value = val.toFixed(2);
+        document.getElementById('val-p').textContent = val.toFixed(2);
+        if (document.getElementById('inp-gc-p')) document.getElementById('inp-gc-p').value = val.toFixed(2);
+        if (document.getElementById('rng-gc-p')) document.getElementById('rng-gc-p').value = val.toFixed(2);
+        if (document.getElementById('val-gc-p')) document.getElementById('val-gc-p').textContent = val.toFixed(2);
+      } else if (param === 'b') {
+        State.b = val;
+        document.getElementById('inp-b').value = val.toFixed(1);
+        document.getElementById('rng-b').value = val.toFixed(1);
+        document.getElementById('val-b').textContent = val.toFixed(2);
+        if (document.getElementById('inp-gc-b')) document.getElementById('inp-gc-b').value = val.toFixed(1);
+        if (document.getElementById('rng-gc-b')) document.getElementById('rng-gc-b').value = val.toFixed(1);
+        if (document.getElementById('val-gc-b')) document.getElementById('val-gc-b').textContent = val.toFixed(2);
+      } else if (param === 'custom-f') {
+        State.customF = val;
+        document.getElementById('inp-custom-f').value = val.toFixed(2);
+        document.getElementById('rng-custom-f').value = val.toFixed(2);
+        document.getElementById('val-custom-f').textContent = val.toFixed(2);
+        if (document.getElementById('inp-gc-custom')) document.getElementById('inp-gc-custom').value = val.toFixed(2);
+        if (document.getElementById('rng-gc-custom')) document.getElementById('rng-gc-custom').value = val.toFixed(2);
+        if (document.getElementById('val-gc-custom')) document.getElementById('val-gc-custom').textContent = val.toFixed(2);
+      }
+
+      updateMathCards();
+      runSimulation();
+      renderGrowthCurve();
+    }
+
+    function applyPreset(type) {
+      if (type === 'coin_edge') {
+        syncControls('p', 0.60);
+        syncControls('b', 1.0);
+        syncControls('custom-f', 0.20);
+      } else if (type === 'high_odds') {
+        syncControls('p', 0.35);
+        syncControls('b', 3.0);
+        syncControls('custom-f', 0.15);
+      } else if (type === 'small_edge') {
+        syncControls('p', 0.51);
+        syncControls('b', 1.0);
+        syncControls('custom-f', 0.02);
+      }
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.nav-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+
+      document.getElementById(tabId).classList.add('active');
+      const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
+      if (targetBtn) targetBtn.classList.add('active');
+
+      setTimeout(() => {
+        if (tabId === 'tab-kelly') renderTrajectoryCanvas();
+        else if (tabId === 'tab-growth-curve') renderGrowthCurve();
+        else if (tabId === 'tab-st-petersburg') { initStPetersburg(); renderStPetersburgCanvas(); }
+        else if (tabId === 'tab-ergodicity-lab') {
+          if (State.ensemble.paths.length === 0) runEnsembleExperiment();
+          else renderEnsembleCanvas();
+        }
+        renderMath();
+      }, 50);
+    }
+
+    window.addEventListener('resize', () => {
+      const activeTab = document.querySelector('.tab-content.active');
+      if (!activeTab) return;
+      if (activeTab.id === 'tab-kelly') renderTrajectoryCanvas();
+      else if (activeTab.id === 'tab-growth-curve') renderGrowthCurve();
+      else if (activeTab.id === 'tab-st-petersburg') renderStPetersburgCanvas();
+      else if (activeTab.id === 'tab-ergodicity-lab') renderEnsembleCanvas();
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initSimulator();
+      renderGrowthCurve();
+      updateFairPriceTable();
+      setupGrowthCanvasHover();
+
+      setTimeout(() => {
+        renderMath();
+      }, 100);
+    });
+  </script>
+
+</body>
+</html>
