@@ -1,2 +1,1 @@
-
-acha
+(https://bertrandsparadox.vercel.app/)
