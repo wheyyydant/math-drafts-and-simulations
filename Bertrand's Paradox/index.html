@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="Interactive Monte Carlo simulation of Bertrand's Paradox exploring geometric probability, measure theory, and stochastic chord generation by Vedant Raut." />
+  <meta name="author" content="Vedant Raut" />
+  <meta name="theme-color" content="#0a0b10" />
+  <title>Bertrand's Paradox — Geometric Probability &amp; Monte Carlo Simulation</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-primary: #0a0b10;
+      --bg-surface: rgba(18, 20, 29, 0.75);
+      --bg-surface-elevated: rgba(28, 32, 48, 0.85);
+      --bg-card: rgba(22, 25, 38, 0.65);
+      
+      --accent-cyan: #00f0ff;
+      --accent-emerald: #10b981;
+      --accent-rose: #f43f5e;
+      --accent-violet: #8b5cf6;
+      --accent-amber: #f59e0b;
+      --accent-blue: #3b82f6;
+      
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(0, 240, 255, 0.4);
+      --glow-cyan: 0 0 25px rgba(0, 240, 255, 0.25);
+      --glow-emerald: 0 0 25px rgba(16, 185, 129, 0.25);
+      
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-full: 9999px;
+      --transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(0, 240, 255, 0.07) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.08) 0px, transparent 50%),
+        radial-gradient(at 50% 50%, rgba(16, 185, 129, 0.03) 0px, transparent 100%);
+      background-attachment: fixed;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Ambient background grid */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Header Nav */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      background: rgba(10, 11, 16, 0.8);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(139, 92, 246, 0.2));
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      display: grid;
+      place-items: center;
+      color: var(--accent-cyan);
+      box-shadow: var(--glow-cyan);
+    }
+
+    .brand-text h1 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(120deg, #fff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text p {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Buttons */
+    .btn {
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: var(--transition);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #00f0ff, #0284c7);
+      border-color: transparent;
+      color: #050b14;
+      font-weight: 700;
+      box-shadow: 0 4px 14px rgba(0, 240, 255, 0.3);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+      box-shadow: 0 6px 20px rgba(0, 240, 255, 0.45);
+      color: #050b14;
+    }
+
+    .btn-emerald {
+      background: linear-gradient(135deg, #10b981, #059669);
+      border-color: transparent;
+      color: #fff;
+      font-weight: 700;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-emerald:hover {
+      background: linear-gradient(135deg, #34d399, #10b981);
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+    }
+
+    .btn-icon {
+      padding: 0.5rem;
+      border-radius: var(--radius-md);
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      position: relative;
+      z-index: 10;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Mode Tabs */
+    .tab-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg-surface);
+      backdrop-filter: blur(12px);
+      padding: 0.35rem;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      width: fit-content;
+      margin: 0 auto;
+    }
+
+    .tab-btn {
+      padding: 0.6rem 1.25rem;
+      border-radius: var(--radius-md);
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: var(--transition);
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+    }
+
+    .tab-btn.active {
+      background: var(--bg-surface-elevated);
+      color: var(--accent-cyan);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--border-subtle);
+    }
+
+    /* App Views */
+    .view-panel {
+      display: none;
+      animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .view-panel.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Simulator Layout */
+    .sim-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    @media (max-width: 1024px) {
+      .sim-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Glass Card */
+    .glass-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card-title .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 8px var(--accent-cyan);
+    }
+
+    /* Canvas Stage */
+    .stage-wrapper {
+      position: relative;
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      max-width: 540px;
+      margin: 0 auto;
+      background: radial-gradient(circle at center, rgba(18, 24, 38, 0.9) 0%, rgba(10, 12, 20, 0.95) 100%);
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      display: grid;
+      place-items: center;
+      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6);
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .canvas-overlay-status {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      background: rgba(10, 12, 20, 0.75);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 0.4rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    /* Method Selector Pills */
+    .method-selector {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .method-pill {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 0.75rem;
+      cursor: pointer;
+      text-align: left;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .method-pill:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+      background: var(--bg-surface-elevated);
+    }
+
+    .method-pill.active {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 240, 255, 0.06);
+      box-shadow: inset 0 0 20px rgba(0, 240, 255, 0.05);
+    }
+
+    .method-pill .m-num {
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      margin-bottom: 0.2rem;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .method-pill .m-target {
+      color: var(--accent-cyan);
+      font-weight: 700;
+    }
+
+    .method-pill .m-name {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+
+    /* Control Bar */
+    .control-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      margin-top: 1rem;
+    }
+
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.4rem 0.85rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      flex: 1;
+    }
+
+    .slider-group input[type="range"] {
+      flex: 1;
+      accent-color: var(--accent-cyan);
+      cursor: pointer;
+    }
+
+    /* Stats Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .metric-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+    }
+
+    .metric-label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .metric-val {
+      font-family: var(--font-mono);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .metric-val.cyan { color: var(--accent-cyan); }
+    .metric-val.emerald { color: var(--accent-emerald); }
+    .metric-val.rose { color: var(--accent-rose); }
+
+    .metric-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+      font-family: var(--font-mono);
+    }
+
+    /* Progress bar */
+    .prob-bar-container {
+      margin: 1.25rem 0;
+    }
+
+    .prob-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .prob-track {
+      height: 12px;
+      border-radius: var(--radius-full);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-subtle);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .prob-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981, #00f0ff);
+      border-radius: var(--radius-full);
+      width: 0%;
+      transition: width 0.15s ease-out;
+    }
+
+    .prob-target-marker {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #ffffff;
+      box-shadow: 0 0 6px #fff;
+      z-index: 2;
+    }
+
+    /* Mini Charts */
+    .chart-box {
+      height: 140px;
+      width: 100%;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      position: relative;
+      margin-top: 1rem;
+      padding: 0.5rem;
+    }
+
+    /* Tri-Compare Mode Grid */
+    .compare-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 900px) {
+      .compare-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .cmp-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .cmp-stage {
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      background: radial-gradient(circle, rgba(18, 22, 35, 0.8), rgba(10, 11, 16, 0.95));
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      position: relative;
+    }
+
+    /* Modal styles */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 6, 12, 0.85);
+      backdrop-filter: blur(16px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .modal-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-box {
+      background: #111420;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      max-width: 800px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 2rem;
+      position: relative;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      transform: scale(0.96);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .modal-backdrop.open .modal-box {
+      transform: scale(1);
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 1.25rem;
+      right: 1.25rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: none;
+      color: var(--text-muted);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      font-size: 1.2rem;
+      transition: var(--transition);
+    }
+
+    .modal-close:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
+
+    .math-block {
+      background: rgba(0, 0, 0, 0.4);
+      border-left: 3px solid var(--accent-cyan);
+      padding: 1rem 1.25rem;
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: #e2e8f0;
+      margin: 1rem 0;
+      overflow-x: auto;
+      line-height: 1.7;
+    }
+
+    /* Footers */
+    footer {
+      border-top: 1px solid var(--border-subtle);
+      padding: 1.25rem 1.5rem;
+      background: rgba(10, 11, 16, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-top: auto;
+    }
+
+    footer a {
+      color: var(--accent-cyan);
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header Navigation -->
+  <header>
+    <div class="brand-group">
+      <div class="brand-badge">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polygon points="12 2, 22 19, 2 19" stroke="currentColor" fill="none"></polygon>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>Bertrand's Paradox</h1>
+        <p>Monte Carlo Stochastic Line Geometry &bull; Vedant Raut</p>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <button class="btn" id="btn-math-modal" aria-label="View Mathematical Derivations">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>
+        Theory &amp; Proofs
+      </button>
+
+      <button class="btn" id="btn-share" aria-label="Share or View QR">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="18" cy="5" r="3"></circle>
+          <circle cx="6" cy="12" r="3"></circle>
+          <circle cx="18" cy="19" r="3"></circle>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+        </svg>
+        Share
+      </button>
+
+      <a href="https://github.com/wheyyydant/BERTRAND-S-Paradox_simulation" target="_blank" rel="noopener noreferrer" class="btn btn-icon" title="GitHub Repository">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Area -->
+  <main>
+    <!-- View Switcher -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="single">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+        Single Method Explorer
+      </button>
+      <button class="tab-btn" data-tab="compare">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="8.5" y="14" width="7" height="7"></rect></svg>
+        Tri-Method Comparison
+      </button>
+    </div>
+
+    <!-- VIEW 1: Single Method Explorer -->
+    <div class="view-panel active" id="view-single">
+      <div class="sim-grid">
+        
+        <!-- Left: Canvas Visualizer -->
+        <div class="glass-card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="dot"></span>
+              Stochastic Geometric Canvas
+            </div>
+            <div style="display: flex; gap: 0.4rem;">
+              <button class="btn btn-icon" id="btn-toggle-audio" title="Toggle Synthesized Audio Feedback">
+                <svg id="svg-sound-on" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                <svg id="svg-sound-off" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+              </button>
+              <button class="btn btn-icon" id="btn-snapshot" title="Save Canvas Snapshot">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="stage-wrapper">
+            <canvas id="main-canvas" width="600" height="600"></canvas>
+            <div class="canvas-overlay-status" id="canvas-status">Ready &bull; Click Step or Run</div>
+          </div>
+
+          <!-- Method Selector Buttons -->
+          <div style="margin-top: 1.25rem;">
+            <div class="method-selector">
+              <div class="method-pill active" data-method="1">
+                <div class="m-num"><span>METHOD 1</span> <span class="m-target">P = 1/3</span></div>
+                <div class="m-name">Random Endpoints</div>
+              </div>
+              <div class="method-pill" data-method="2">
+                <div class="m-num"><span>METHOD 2</span> <span class="m-target">P = 1/2</span></div>
+                <div class="m-name">Random Radius</div>
+              </div>
+              <div class="method-pill" data-method="3">
+                <div class="m-num"><span>METHOD 3</span> <span class="m-target">P = 1/4</span></div>
+                <div class="m-name">Random Midpoint</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Execution Controls -->
+          <div class="control-row">
+            <button class="btn btn-primary" id="btn-step">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              Step 1
+            </button>
+            <button class="btn" id="btn-batch-100">+100</button>
+            <button class="btn" id="btn-batch-1000">+1,000</button>
+            <button class="btn btn-emerald" id="btn-auto-toggle">Auto Loop</button>
+            <button class="btn" id="btn-reset">Reset</button>
+
+            <div class="slider-group">
+              <span>Speed</span>
+              <input type="range" id="sim-speed" min="1" max="60" value="30" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Statistical Analysis & Probability Tracker -->
+        <div class="glass-card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="dot" style="background: var(--accent-emerald); box-shadow: 0 0 8px var(--accent-emerald);"></span>
+              Live Monte Carlo Statistics
+            </div>
+            <button class="btn" id="btn-export-csv" style="font-size: 0.75rem; padding: 0.35rem 0.7rem;">
+              Export CSV
+            </button>
+          </div>
+
+          <!-- Metrics 2x2 -->
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-label">Total Chords (N)</div>
+              <div class="metric-val" id="val-trials">0</div>
+              <div class="metric-sub">Sample size</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Long Chords (L > &radic;3)</div>
+              <div class="metric-val emerald" id="val-favorable">0</div>
+              <div class="metric-sub" id="val-fav-pct">0.0% of total</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Empirical &Pcirc;<sub>N</sub></div>
+              <div class="metric-val cyan" id="val-empirical">0.0000</div>
+              <div class="metric-sub" id="val-error-margin">&plusmn; 0.0000 (95% CI)</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Theoretical Target</div>
+              <div class="metric-val" id="val-target" style="color: var(--accent-amber);">0.3333</div>
+              <div class="metric-sub" id="val-target-name">Method 1 (1/3)</div>
+            </div>
+          </div>
+
+          <!-- Progress Bar Indicator -->
+          <div class="prob-bar-container">
+            <div class="prob-header">
+              <span>Convergence Tracker</span>
+              <span id="prob-track-label" style="font-family: var(--font-mono); color: var(--accent-cyan);">0.0000 / 0.3333</span>
+            </div>
+            <div class="prob-track">
+              <div class="prob-target-marker" id="prob-target-line" style="left: 33.33%;"></div>
+              <div class="prob-fill" id="prob-fill-bar"></div>
+            </div>
+          </div>
+
+          <!-- Real-Time Distance Histogram Canvas -->
+          <div style="margin-top: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem;">
+              <span>Distance Density Distribution f<sub>D</sub>(d)</span>
+              <span style="font-family: var(--font-mono); color: var(--accent-emerald);">Threshold d = 0.5</span>
+            </div>
+            <div class="chart-box">
+              <canvas id="hist-canvas" width="450" height="130"></canvas>
+            </div>
+          </div>
+
+          <!-- Dynamic Method Commentary -->
+          <div style="margin-top: 1.25rem; background: var(--bg-surface); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); font-size: 0.82rem; color: var(--text-muted);">
+            <strong id="commentary-title" style="color: var(--text-main); display: block; margin-bottom: 0.3rem;">Method 1: Random Endpoints</strong>
+            <span id="commentary-body">Two independent endpoints &theta;<sub>1</sub>, &theta;<sub>2</sub> &sim; &Uscr;[0, 2&pi;) are chosen uniformly on the perimeter. The distance density is f<sub>D</sub>(d) = 2/(&pi;&radic;(1 - d&sup2;)), yielding P = 1/3.</span>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- VIEW 2: Tri-Method Comparison Grid -->
+    <div class="view-panel" id="view-compare">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div>
+          <h2 style="font-size: 1.15rem; font-weight: 700;">Simultaneous 3-Method Real-Time Comparison</h2>
+          <p style="font-size: 0.8rem; color: var(--text-dim);">Run the exact same iteration sequence across all three geometric measures.</p>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-primary" id="btn-cmp-step">Step All</button>
+          <button class="btn" id="btn-cmp-100">+100 All</button>
+          <button class="btn" id="btn-cmp-1000">+1,000 All</button>
+          <button class="btn btn-emerald" id="btn-cmp-auto">Auto All</button>
+          <button class="btn" id="btn-cmp-reset">Reset All</button>
+        </div>
+      </div>
+
+      <div class="compare-grid">
+        <!-- Method 1 Card -->
+        <div class="cmp-card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="color: var(--accent-cyan);">Method 1: Endpoints</strong>
+            <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">Target: 0.3333 (1/3)</span>
+          </div>
+          <div class="cmp-stage">
+            <canvas id="cmp-canvas-1" width="320" height="320"></canvas>
+          </div>
+          <div>
+            <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.85rem; margin-bottom: 0.2rem;">
+              <span>&Pcirc;<sub>N</sub>: <strong id="cmp-prob-1" style="color: var(--accent-cyan);">0.0000</strong></span>
+              <span id="cmp-count-1" style="color: var(--text-dim);">0 / 0</span>
+            </div>
+            <div class="prob-track">
+              <div class="prob-target-marker" style="left: 33.33%;"></div>
+              <div class="prob-fill" id="cmp-fill-1"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Method 2 Card -->
+        <div class="cmp-card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="color: var(--accent-emerald);">Method 2: Radius</strong>
+            <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">Target: 0.5000 (1/2)</span>
+          </div>
+          <div class="cmp-stage">
+            <canvas id="cmp-canvas-2" width="320" height="320"></canvas>
+          </div>
+          <div>
+            <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.85rem; margin-bottom: 0.2rem;">
+              <span>&Pcirc;<sub>N</sub>: <strong id="cmp-prob-2" style="color: var(--accent-emerald);">0.0000</strong></span>
+              <span id="cmp-count-2" style="color: var(--text-dim);">0 / 0</span>
+            </div>
+            <div class="prob-track">
+              <div class="prob-target-marker" style="left: 50%;"></div>
+              <div class="prob-fill" id="cmp-fill-2"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Method 3 Card -->
+        <div class="cmp-card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="color: var(--accent-violet);">Method 3: Midpoint</strong>
+            <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">Target: 0.2500 (1/4)</span>
+          </div>
+          <div class="cmp-stage">
+            <canvas id="cmp-canvas-3" width="320" height="320"></canvas>
+          </div>
+          <div>
+            <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.85rem; margin-bottom: 0.2rem;">
+              <span>&Pcirc;<sub>N</sub>: <strong id="cmp-prob-3" style="color: var(--accent-violet);">0.0000</strong></span>
+              <span id="cmp-count-3" style="color: var(--text-dim);">0 / 0</span>
+            </div>
+            <div class="prob-track">
+              <div class="prob-target-marker" style="left: 25%;"></div>
+              <div class="prob-fill" id="cmp-fill-3"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Mathematical Theory Modal -->
+  <div class="modal-backdrop" id="theory-modal">
+    <div class="modal-box">
+      <button class="modal-close" id="btn-close-modal" aria-label="Close modal">&times;</button>
+      
+      <h2 style="font-size: 1.35rem; margin-bottom: 0.5rem; color: var(--accent-cyan);">Bertrand's Paradox: Mathematical Formalism</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">A study in geometric probability, measure-theoretic ambiguity, and maximum entropy invariances.</p>
+
+      <h3 style="font-size: 1rem; color: #fff; margin-top: 1rem;">1. The Core Threshold Inequality</h3>
+      <p style="font-size: 0.88rem; color: #cbd5e1; margin-top: 0.4rem;">
+        In the unit disk D&sup2;, an inscribed equilateral triangle has side length s = &radic;3. For any chord at distance d &isin; [0, 1] from the origin, its length is L = 2&radic;(1 - d&sup2;). The condition L &gt; &radic;3 simplifies to:
+      </p>
+      <div class="math-block">
+        L &gt; &radic;3 &iff; 2&radic;(1 - d&sup2;) &gt; &radic;3 &iff; 1 - d&sup2; &gt; 3/4 &iff; d &lt; 1/2
+      </div>
+
+      <h3 style="font-size: 1rem; color: #fff; margin-top: 1.5rem;">2. The Three Induced Push-Forward Measures</h3>
+      
+      <p style="font-size: 0.88rem; color: #cbd5e1; margin-top: 0.4rem;"><strong>Method 1: Random Endpoints (P<sub>1</sub> = 1/3)</strong></p>
+      <div class="math-block">
+        &theta;<sub>1</sub>, &theta;<sub>2</sub> &sim; &Uscr;[0, 2&pi;) &rArr; &Delta; &sim; &Uscr;[0, &pi;], &nbsp; d = cos(&Delta;/2)<br/>
+        f<sub>D</sub><sup>(1)</sup>(d) = 2 / (&pi;&radic;(1 - d&sup2;)) &rArr; P<sub>1</sub>(d &lt; 1/2) = &int;<sub>0</sub><sup>1/2</sup> 2/(&pi;&radic;(1 - d&sup2;)) dd = 1/3
+      </div>
+
+      <p style="font-size: 0.88rem; color: #cbd5e1; margin-top: 0.8rem;"><strong>Method 2: Random Radius &amp; Jaynes Invariance (P<sub>2</sub> = 1/2)</strong></p>
+      <div class="math-block">
+        d &sim; &Uscr;[0, 1], &nbsp; &phi; &sim; &Uscr;[0, 2&pi;)<br/>
+        f<sub>D</sub><sup>(2)</sup>(d) = 1 &rArr; P<sub>2</sub>(d &lt; 1/2) = &int;<sub>0</sub><sup>1/2</sup> 1 dd = 1/2
+      </div>
+
+      <p style="font-size: 0.88rem; color: #cbd5e1; margin-top: 0.8rem;"><strong>Method 3: Random Midpoint Area Measure (P<sub>3</sub> = 1/4)</strong></p>
+      <div class="math-block">
+        M &sim; &Uscr;(D&sup2;) &rArr; F<sub>D</sub><sup>(3)</sup>(d) = &pi;d&sup2;/&pi; = d&sup2;, &nbsp; f<sub>D</sub><sup>(3)</sup>(d) = 2d<br/>
+        P<sub>3</sub>(d &lt; 1/2) = &int;<sub>0</sub><sup>1/2</sup> 2d dd = [d&sup2;]<sub>0</sub><sup>1/2</sup> = 1/4
+      </div>
+
+      <h3 style="font-size: 1rem; color: #fff; margin-top: 1.5rem;">3. Monte Carlo Asymptotic Bounds</h3>
+      <p style="font-size: 0.88rem; color: #cbd5e1; margin-top: 0.4rem;">
+        By the Central Limit Theorem, the empirical estimator converges with 95% confidence bounds:
+      </p>
+      <div class="math-block">
+        &Pcirc;<sub>N</sub> = (1/N) &sum; 1<sub>{d<sub>i</sub> &lt; 1/2}</sub>, &nbsp; Error Margin (95% CI) &approx; &plusmn; 1.96 &radic;(p(1-p)/N)
+      </div>
+    </div>
+  </div>
+
+  <!-- Share & QR Modal -->
+  <div class="modal-backdrop" id="share-modal">
+    <div class="modal-box" style="max-width: 440px; text-align: center;">
+      <button class="modal-close" id="btn-close-share" aria-label="Close modal">&times;</button>
+      
+      <h3 style="font-size: 1.2rem; color: #fff; margin-bottom: 0.5rem;">Scan / Share Simulation</h3>
+      <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 1.25rem;">Open directly on mobile or share with your audience.</p>
+
+      <div style="background: #ffffff; padding: 1rem; border-radius: var(--radius-md); display: inline-block; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        <img id="qr-img-tag" src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=2&data=https%3A%2F%2Fwheyyydant.github.io%2FBERTRAND-S-Paradox_simulation" alt="QR Code" width="220" height="220" style="display: block;" />
+      </div>
+
+      <div style="margin-top: 1.25rem;">
+        <input type="text" id="share-url-input" readonly value="https://wheyyydant.github.io/BERTRAND-S-Paradox_simulation" style="width: 100%; background: var(--bg-surface); border: 1px solid var(--border-subtle); padding: 0.6rem 0.85rem; border-radius: var(--radius-sm); color: var(--accent-cyan); font-family: var(--font-mono); font-size: 0.8rem; text-align: center;" />
+        <button class="btn btn-primary" id="btn-copy-url" style="width: 100%; margin-top: 0.75rem; justify-content: center;">
+          Copy Link
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div>
+      <strong>Bertrand's Paradox Interactive Monte Carlo</strong> &bull; Crafted by <a href="https://github.com/wheyyydant" target="_blank" rel="noopener">Vedant Raut</a>
+    </div>
+    <div>
+      100% Native Client-Side &bull; Open Source
+    </div>
+  </footer>
+
+  <!-- Simulation Logic & Canvas Rendering -->
+  <script>
+    (() => {
+      'use strict';
+
+      // ---------- Audio Synthesizer (Zero external assets) ----------
+      class SoundFX {
+        constructor() {
+          this.enabled = true;
+          this.ctx = null;
+        }
+
+        init() {
+          if (!this.ctx && (window.AudioContext || window.webkitAudioContext)) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioCtx();
+          }
+        }
+
+        playPop(isLong) {
+          if (!this.enabled) return;
+          try {
+            this.init();
+            if (!this.ctx) return;
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+            
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            const now = this.ctx.currentTime;
+            
+            osc.type = isLong ? 'sine' : 'triangle';
+            osc.frequency.setValueAtTime(isLong ? 587.33 : 329.63, now);
+            osc.frequency.exponentialRampToValueAtTime(isLong ? 880 : 220, now + 0.08);
+
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+
+            osc.start(now);
+            osc.stop(now + 0.08);
+          } catch(e) {}
+        }
+      }
+
+      const sfx = new SoundFX();
+
+      // ---------- State & Mathematical Models ----------
+      const state = {
+        method: 1, // 1: Endpoints, 2: Radius, 3: Midpoint
+        trials: 0,
+        favorable: 0,
+        chords: [],
+        histBins: new Array(20).fill(0),
+        animating: false,
+        autoRunning: false,
+        speed: 30,
+        targetProbs: { 1: 1/3, 2: 1/2, 3: 1/4 },
+        methodNames: { 1: 'Method 1 (1/3)', 2: 'Method 2 (1/2)', 3: 'Method 3 (1/4)' }
+      };
+
+      // Tri-method compare state
+      const cmpState = {
+        autoRunning: false,
+        data: {
+          1: { trials: 0, favorable: 0, chords: [] },
+          2: { trials: 0, favorable: 0, chords: [] },
+          3: { trials: 0, favorable: 0, chords: [] }
+        }
+      };
+
+      // ---------- Generator Functions for 3 Methods ----------
+      function generateChord(method) {
+        let p1 = { x: 0, y: 0 }, p2 = { x: 0, y: 0 };
+        let d = 0, angle = 0, mid = { x: 0, y: 0 };
+
+        if (method === 1) {
+          // Method 1: Random Endpoints (Uniform on circle perimeter)
+          const theta1 = Math.random() * 2 * Math.PI;
+          const theta2 = Math.random() * 2 * Math.PI;
+          p1 = { x: Math.cos(theta1), y: Math.sin(theta1) };
+          p2 = { x: Math.cos(theta2), y: Math.sin(theta2) };
+          
+          mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+          d = Math.hypot(mid.x, mid.y);
+          angle = Math.atan2(mid.y, mid.x);
+        } else if (method === 2) {
+          // Method 2: Random Radius (Uniform distance along random radius)
+          angle = Math.random() * 2 * Math.PI;
+          d = Math.random(); // Uniform [0, 1]
+          mid = { x: d * Math.cos(angle), y: d * Math.sin(angle) };
+          
+          const halfLen = Math.sqrt(Math.max(0, 1 - d * d));
+          const perpAngle = angle + Math.PI / 2;
+          p1 = { x: mid.x + halfLen * Math.cos(perpAngle), y: mid.y + halfLen * Math.sin(perpAngle) };
+          p2 = { x: mid.x - halfLen * Math.cos(perpAngle), y: mid.y - halfLen * Math.sin(perpAngle) };
+        } else {
+          // Method 3: Random Midpoint (Uniform over disk area)
+          angle = Math.random() * 2 * Math.PI;
+          d = Math.sqrt(Math.random()); // r = sqrt(U) for uniform area
+          mid = { x: d * Math.cos(angle), y: d * Math.sin(angle) };
+          
+          const halfLen = Math.sqrt(Math.max(0, 1 - d * d));
+          const perpAngle = angle + Math.PI / 2;
+          p1 = { x: mid.x + halfLen * Math.cos(perpAngle), y: mid.y + halfLen * Math.sin(perpAngle) };
+          p2 = { x: mid.x - halfLen * Math.cos(perpAngle), y: mid.y - halfLen * Math.sin(perpAngle) };
+        }
+
+        const isLong = d < 0.5;
+        const length = 2 * Math.sqrt(Math.max(0, 1 - d * d));
+
+        return { p1, p2, mid, d, angle, isLong, length };
+      }
+
+      // ---------- Main Canvas Renderer ----------
+      const mainCanvas = document.getElementById('main-canvas');
+      const mainCtx = mainCanvas.getContext('2d');
+      const histCanvas = document.getElementById('hist-canvas');
+      const histCtx = histCanvas.getContext('2d');
+
+      function drawMainCanvas() {
+        const w = mainCanvas.width;
+        const h = mainCanvas.height;
+        const cx = w / 2;
+        const cy = h / 2;
+        const R = w * 0.42;
+
+        mainCtx.clearRect(0, 0, w, h);
+
+        // 1. Inscribed Equilateral Triangle
+        mainCtx.save();
+        mainCtx.beginPath();
+        for (let i = 0; i < 3; i++) {
+          const a = -Math.PI / 2 + (i * 2 * Math.PI) / 3;
+          const tx = cx + R * Math.cos(a);
+          const ty = cy + R * Math.sin(a);
+          if (i === 0) mainCtx.moveTo(tx, ty);
+          else mainCtx.lineTo(tx, ty);
+        }
+        mainCtx.closePath();
+        mainCtx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        mainCtx.lineWidth = 1.5;
+        mainCtx.setLineDash([4, 4]);
+        mainCtx.stroke();
+        mainCtx.fillStyle = 'rgba(255, 255, 255, 0.015)';
+        mainCtx.fill();
+        mainCtx.restore();
+
+        // 2. Midpoint threshold circle (r = 1/2 R)
+        mainCtx.save();
+        mainCtx.beginPath();
+        mainCtx.arc(cx, cy, R * 0.5, 0, 2 * Math.PI);
+        mainCtx.strokeStyle = 'rgba(16, 185, 129, 0.25)';
+        mainCtx.lineWidth = 1.5;
+        mainCtx.setLineDash([3, 3]);
+        mainCtx.stroke();
+        mainCtx.restore();
+
+        // 3. Render Historical Chords
+        const maxDraw = 600;
+        const startIdx = Math.max(0, state.chords.length - maxDraw);
+        for (let i = startIdx; i < state.chords.length; i++) {
+          const c = state.chords[i];
+          const alpha = 0.15 + (i - startIdx) / (state.chords.length - startIdx) * 0.35;
+          mainCtx.beginPath();
+          mainCtx.moveTo(cx + c.p1.x * R, cy + c.p1.y * R);
+          mainCtx.lineTo(cx + c.p2.x * R, cy + c.p2.y * R);
+          mainCtx.strokeStyle = c.isLong 
+            ? `rgba(16, 185, 129, ${alpha})` 
+            : `rgba(244, 63, 94, ${alpha})`;
+          mainCtx.lineWidth = 1.2;
+          mainCtx.stroke();
+        }
+
+        // 4. Highlight Latest Chord
+        if (state.chords.length > 0) {
+          const latest = state.chords[state.chords.length - 1];
+          mainCtx.save();
+          mainCtx.beginPath();
+          mainCtx.moveTo(cx + latest.p1.x * R, cy + latest.p1.y * R);
+          mainCtx.lineTo(cx + latest.p2.x * R, cy + latest.p2.y * R);
+          mainCtx.strokeStyle = latest.isLong ? '#10b981' : '#f43f5e';
+          mainCtx.lineWidth = 3;
+          mainCtx.shadowColor = latest.isLong ? 'rgba(16, 185, 129, 0.8)' : 'rgba(244, 63, 94, 0.8)';
+          mainCtx.shadowBlur = 10;
+          mainCtx.stroke();
+
+          // Draw midpoint & normal
+          mainCtx.beginPath();
+          mainCtx.arc(cx + latest.mid.x * R, cy + latest.mid.y * R, 4.5, 0, 2 * Math.PI);
+          mainCtx.fillStyle = '#00f0ff';
+          mainCtx.shadowColor = '#00f0ff';
+          mainCtx.shadowBlur = 8;
+          mainCtx.fill();
+
+          // Normal line from origin to midpoint
+          mainCtx.beginPath();
+          mainCtx.moveTo(cx, cy);
+          mainCtx.lineTo(cx + latest.mid.x * R, cy + latest.mid.y * R);
+          mainCtx.strokeStyle = 'rgba(0, 240, 255, 0.6)';
+          mainCtx.lineWidth = 1.5;
+          mainCtx.setLineDash([2, 2]);
+          mainCtx.stroke();
+          mainCtx.restore();
+        }
+
+        // 5. Outer Circle Boundary
+        mainCtx.save();
+        mainCtx.beginPath();
+        mainCtx.arc(cx, cy, R, 0, 2 * Math.PI);
+        mainCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        mainCtx.lineWidth = 2.5;
+        mainCtx.stroke();
+
+        // Center dot
+        mainCtx.beginPath();
+        mainCtx.arc(cx, cy, 3, 0, 2 * Math.PI);
+        mainCtx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        mainCtx.fill();
+        mainCtx.restore();
+      }
+
+      // ---------- Distance Histogram Renderer ----------
+      function drawHistogram() {
+        const w = histCanvas.width;
+        const h = histCanvas.height;
+        histCtx.clearRect(0, 0, w, h);
+
+        const bins = state.histBins;
+        const maxVal = Math.max(1, ...bins);
+        const barW = (w - 30) / bins.length;
+        const padX = 15;
+        const padY = 10;
+        const plotH = h - padY * 2 - 15;
+
+        // Draw Threshold Line (d = 0.5 is at 50% width)
+        const threshX = padX + (w - 30) * 0.5;
+        histCtx.save();
+        histCtx.beginPath();
+        histCtx.moveTo(threshX, padY);
+        histCtx.lineTo(threshX, h - 20);
+        histCtx.strokeStyle = 'rgba(16, 185, 129, 0.6)';
+        histCtx.lineWidth = 1.5;
+        histCtx.setLineDash([3, 3]);
+        histCtx.stroke();
+        histCtx.restore();
+
+        // Draw Bins
+        for (let i = 0; i < bins.length; i++) {
+          const val = bins[i];
+          const barH = (val / maxVal) * plotH;
+          const x = padX + i * barW;
+          const y = h - 20 - barH;
+          const isLeft = i < bins.length / 2;
+
+          histCtx.fillStyle = isLeft 
+            ? 'rgba(16, 185, 129, 0.65)' 
+            : 'rgba(244, 63, 94, 0.45)';
+          histCtx.fillRect(x + 1, y, barW - 2, barH);
+        }
+
+        // Base Axis
+        histCtx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        histCtx.beginPath();
+        histCtx.moveTo(padX, h - 20);
+        histCtx.lineTo(w - padX, h - 20);
+        histCtx.stroke();
+
+        // Axis Labels
+        histCtx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        histCtx.font = '10px Fira Code, monospace';
+        histCtx.fillText('d = 0.0', padX, h - 6);
+        histCtx.fillText('d = 0.5', threshX - 18, h - 6);
+        histCtx.fillText('d = 1.0', w - padX - 35, h - 6);
+      }
+
+      // ---------- Compare Mode Canvas Renderers ----------
+      function drawCompareCanvas(method) {
+        const c = document.getElementById(`cmp-canvas-${method}`);
+        if (!c) return;
+        const ctx = c.getContext('2d');
+        const w = c.width, h = c.height;
+        const cx = w / 2, cy = h / 2, R = w * 0.42;
+        const dObj = cmpState.data[method];
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Inscribed triangle
+        ctx.beginPath();
+        for (let i = 0; i < 3; i++) {
+          const a = -Math.PI / 2 + (i * 2 * Math.PI) / 3;
+          const tx = cx + R * Math.cos(a), ty = cy + R * Math.sin(a);
+          if (i === 0) ctx.moveTo(tx, ty); else ctx.lineTo(tx, ty);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.stroke();
+
+        // Chords
+        const maxDraw = 200;
+        const start = Math.max(0, dObj.chords.length - maxDraw);
+        for (let i = start; i < dObj.chords.length; i++) {
+          const ch = dObj.chords[i];
+          ctx.beginPath();
+          ctx.moveTo(cx + ch.p1.x * R, cy + ch.p1.y * R);
+          ctx.lineTo(cx + ch.p2.x * R, cy + ch.p2.y * R);
+          ctx.strokeStyle = ch.isLong ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+
+        // Outer ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, 0, 2 * Math.PI);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // ---------- UI & Stats Updating ----------
+      function updateUI() {
+        const emp = state.trials > 0 ? state.favorable / state.trials : 0;
+        const target = state.targetProbs[state.method];
+
+        document.getElementById('val-trials').textContent = state.trials.toLocaleString();
+        document.getElementById('val-favorable').textContent = state.favorable.toLocaleString();
+        document.getElementById('val-fav-pct').textContent = state.trials > 0 
+          ? `${((state.favorable / state.trials) * 100).toFixed(1)}% of total` 
+          : '0.0% of total';
+
+        document.getElementById('val-empirical').textContent = emp.toFixed(4);
+        
+        // 95% Confidence Interval
+        if (state.trials > 0) {
+          const se = 1.96 * Math.sqrt((emp * (1 - emp)) / state.trials);
+          document.getElementById('val-error-margin').textContent = `\u00B1 ${se.toFixed(4)} (95% CI)`;
+        } else {
+          document.getElementById('val-error-margin').textContent = '\u00B1 0.0000 (95% CI)';
+        }
+
+        document.getElementById('val-target').textContent = target.toFixed(4);
+        document.getElementById('val-target-name').textContent = state.methodNames[state.method];
+
+        // Progress bar
+        const fillBar = document.getElementById('prob-fill-bar');
+        const targetLine = document.getElementById('prob-target-line');
+        const trackLabel = document.getElementById('prob-track-label');
+        
+        fillBar.style.width = `${Math.min(100, emp * 100)}%`;
+        targetLine.style.left = `${target * 100}%`;
+        trackLabel.textContent = `${emp.toFixed(4)} / ${target.toFixed(4)}`;
+
+        // Status text
+        if (state.chords.length > 0) {
+          const l = state.chords[state.chords.length - 1];
+          document.getElementById('canvas-status').textContent = 
+            `Last: d = ${l.d.toFixed(3)} | L = ${l.length.toFixed(3)} (${l.isLong ? 'Long' : 'Short'})`;
+        }
+
+        drawMainCanvas();
+        drawHistogram();
+      }
+
+      function updateCompareUI() {
+        [1, 2, 3].forEach(m => {
+          const d = cmpState.data[m];
+          const emp = d.trials > 0 ? d.favorable / d.trials : 0;
+          document.getElementById(`cmp-prob-${m}`).textContent = emp.toFixed(4);
+          document.getElementById(`cmp-count-${m}`).textContent = `${d.favorable} / ${d.trials}`;
+          document.getElementById(`cmp-fill-${m}`).style.width = `${Math.min(100, emp * 100)}%`;
+          drawCompareCanvas(m);
+        });
+      }
+
+      // ---------- Simulation Step Handlers ----------
+      function executeStep(playAudio = true) {
+        const chord = generateChord(state.method);
+        state.trials++;
+        if (chord.isLong) state.favorable++;
+
+        state.chords.push(chord);
+        if (state.chords.length > 1000) state.chords.shift();
+
+        // Bin distance in [0, 1]
+        const binIdx = Math.min(state.histBins.length - 1, Math.floor(chord.d * state.histBins.length));
+        state.histBins[binIdx]++;
+
+        if (playAudio) sfx.playPop(chord.isLong);
+        updateUI();
+      }
+
+      function executeBatch(count) {
+        for (let i = 0; i < count; i++) {
+          const chord = generateChord(state.method);
+          state.trials++;
+          if (chord.isLong) state.favorable++;
+          state.chords.push(chord);
+          const binIdx = Math.min(state.histBins.length - 1, Math.floor(chord.d * state.histBins.length));
+          state.histBins[binIdx]++;
+        }
+        if (state.chords.length > 1000) {
+          state.chords = state.chords.slice(-1000);
+        }
+        sfx.playPop(true);
+        updateUI();
+      }
+
+      function resetSimulation() {
+        state.trials = 0;
+        state.favorable = 0;
+        state.chords = [];
+        state.histBins.fill(0);
+        if (state.autoRunning) toggleAutoRun();
+        updateUI();
+      }
+
+      function executeCompareStep() {
+        [1, 2, 3].forEach(m => {
+          const ch = generateChord(m);
+          cmpState.data[m].trials++;
+          if (ch.isLong) cmpState.data[m].favorable++;
+          cmpState.data[m].chords.push(ch);
+          if (cmpState.data[m].chords.length > 300) cmpState.data[m].chords.shift();
+        });
+        updateCompareUI();
+      }
+
+      function executeCompareBatch(count) {
+        for (let i = 0; i < count; i++) {
+          [1, 2, 3].forEach(m => {
+            const ch = generateChord(m);
+            cmpState.data[m].trials++;
+            if (ch.isLong) cmpState.data[m].favorable++;
+            cmpState.data[m].chords.push(ch);
+          });
+        }
+        [1, 2, 3].forEach(m => {
+          if (cmpState.data[m].chords.length > 300) {
+            cmpState.data[m].chords = cmpState.data[m].chords.slice(-300);
+          }
+        });
+        updateCompareUI();
+      }
+
+      function resetCompare() {
+        [1, 2, 3].forEach(m => {
+          cmpState.data[m] = { trials: 0, favorable: 0, chords: [] };
+        });
+        if (cmpState.autoRunning) toggleCompareAuto();
+        updateCompareUI();
+      }
+
+      // ---------- Auto-Runner Loops ----------
+      let autoTimer = null;
+      function toggleAutoRun() {
+        state.autoRunning = !state.autoRunning;
+        const btn = document.getElementById('btn-auto-toggle');
+        if (state.autoRunning) {
+          btn.textContent = 'Pause Auto';
+          btn.style.background = 'linear-gradient(135deg, #f43f5e, #e11d48)';
+          const loop = () => {
+            if (!state.autoRunning) return;
+            const batchSize = Math.max(1, Math.floor(state.speed / 5));
+            executeBatch(batchSize);
+            autoTimer = setTimeout(loop, 1000 / state.speed);
+          };
+          loop();
+        } else {
+          btn.textContent = 'Auto Loop';
+          btn.style.background = '';
+          if (autoTimer) clearTimeout(autoTimer);
+        }
+      }
+
+      let cmpTimer = null;
+      function toggleCompareAuto() {
+        cmpState.autoRunning = !cmpState.autoRunning;
+        const btn = document.getElementById('btn-cmp-auto');
+        if (cmpState.autoRunning) {
+          btn.textContent = 'Pause All';
+          btn.style.background = 'linear-gradient(135deg, #f43f5e, #e11d48)';
+          const loop = () => {
+            if (!cmpState.autoRunning) return;
+            executeCompareBatch(5);
+            cmpTimer = setTimeout(loop, 40);
+          };
+          loop();
+        } else {
+          btn.textContent = 'Auto All';
+          btn.style.background = '';
+          if (cmpTimer) clearTimeout(cmpTimer);
+        }
+      }
+
+      // ---------- Method Selection Handler ----------
+      const commentary = {
+        1: {
+          title: "Method 1: Random Endpoints (P = 1/3)",
+          body: "Two independent endpoints \u03B8\u2081, \u03B8\u2082 \u223C Uniform[0, 2\u03C0) are chosen uniformly on the circle perimeter. The distance density is f_D(d) = 2 / (\u03C0\u221A(1 - d\u00B2)), yielding P(L > \u221A3) = 1/3."
+        },
+        2: {
+          title: "Method 2: Random Radius / Jaynes Invariance (P = 1/2)",
+          body: "A direction is chosen uniformly, and a distance d \u223C Uniform[0, 1] is chosen linearly along that radius. The chord is drawn perpendicular. The distance density is constant f_D(d) = 1, yielding P(L > \u221A3) = 1/2. This is the unique measure invariant under rigid planar motions."
+        },
+        3: {
+          title: "Method 3: Random Midpoint (P = 1/4)",
+          body: "The midpoint is chosen uniformly across the 2D disk area. In polar coordinates, r = \u221AU corrects for the Jacobian dA = r dr d\u03B8. The distance density is f_D(d) = 2d, yielding P(L > \u221A3) = Area(r < 1/2) / Area(r < 1) = 1/4."
+        }
+      };
+
+      document.querySelectorAll('.method-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+          document.querySelectorAll('.method-pill').forEach(p => p.classList.remove('active'));
+          pill.classList.add('active');
+          state.method = parseInt(pill.dataset.method, 10);
+          
+          document.getElementById('commentary-title').textContent = commentary[state.method].title;
+          document.getElementById('commentary-body').textContent = commentary[state.method].body;
+          
+          resetSimulation();
+        });
+      });
+
+      // ---------- Event Listeners ----------
+      document.getElementById('btn-step').addEventListener('click', () => executeStep(true));
+      document.getElementById('btn-batch-100').addEventListener('click', () => executeBatch(100));
+      document.getElementById('btn-batch-1000').addEventListener('click', () => executeBatch(1000));
+      document.getElementById('btn-auto-toggle').addEventListener('click', toggleAutoRun);
+      document.getElementById('btn-reset').addEventListener('click', resetSimulation);
+      
+      document.getElementById('sim-speed').addEventListener('input', (e) => {
+        state.speed = parseInt(e.target.value, 10);
+      });
+
+      // Compare mode buttons
+      document.getElementById('btn-cmp-step').addEventListener('click', executeCompareStep);
+      document.getElementById('btn-cmp-100').addEventListener('click', () => executeCompareBatch(100));
+      document.getElementById('btn-cmp-1000').addEventListener('click', () => executeCompareBatch(1000));
+      document.getElementById('btn-cmp-auto').addEventListener('click', toggleCompareAuto);
+      document.getElementById('btn-cmp-reset').addEventListener('click', resetCompare);
+
+      // Audio Toggle
+      document.getElementById('btn-toggle-audio').addEventListener('click', () => {
+        sfx.enabled = !sfx.enabled;
+        document.getElementById('svg-sound-on').style.display = sfx.enabled ? 'block' : 'none';
+        document.getElementById('svg-sound-off').style.display = sfx.enabled ? 'none' : 'block';
+      });
+
+      // Snapshot Download
+      document.getElementById('btn-snapshot').addEventListener('click', () => {
+        const link = document.createElement('a');
+        link.download = `bertrand-method-${state.method}-simulation.png`;
+        link.href = mainCanvas.toDataURL('image/png');
+        link.click();
+      });
+
+      // CSV Export
+      document.getElementById('btn-export-csv').addEventListener('click', () => {
+        let csv = 'iteration,d_distance,chord_length,is_long\n';
+        state.chords.forEach((c, idx) => {
+          csv += `${idx + 1},${c.d.toFixed(5)},${c.length.toFixed(5)},${c.isLong ? 1 : 0}\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `bertrand_method_${state.method}_samples.csv`;
+        a.click();
+      });
+
+      // Tab Switching
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.view-panel').forEach(v => v.classList.remove('active'));
+          btn.classList.add('active');
+          const target = btn.dataset.tab;
+          document.getElementById(`view-${target}`).classList.add('active');
+          if (target === 'compare') updateCompareUI();
+          else updateUI();
+        });
+      });
+
+      // Modals
+      const theoryModal = document.getElementById('theory-modal');
+      const shareModal = document.getElementById('share-modal');
+
+      document.getElementById('btn-math-modal').addEventListener('click', () => theoryModal.classList.add('open'));
+      document.getElementById('btn-close-modal').addEventListener('click', () => theoryModal.classList.remove('open'));
+
+      document.getElementById('btn-share').addEventListener('click', () => {
+        const url = window.location.protocol.startsWith('http') 
+          ? window.location.href 
+          : 'https://wheyyydant.github.io/BERTRAND-S-Paradox_simulation';
+        document.getElementById('share-url-input').value = url;
+        document.getElementById('qr-img-tag').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=2&data=${encodeURIComponent(url)}`;
+        shareModal.classList.add('open');
+      });
+      document.getElementById('btn-close-share').addEventListener('click', () => shareModal.classList.remove('open'));
+
+      document.getElementById('btn-copy-url').addEventListener('click', () => {
+        const input = document.getElementById('share-url-input');
+        input.select();
+        navigator.clipboard.writeText(input.value);
+        document.getElementById('btn-copy-url').textContent = 'Copied to Clipboard!';
+        setTimeout(() => {
+          document.getElementById('btn-copy-url').textContent = 'Copy Link';
+        }, 2000);
+      });
+
+      // Close modals on outside click or ESC
+      [theoryModal, shareModal].forEach(m => {
+        m.addEventListener('click', (e) => {
+          if (e.target === m) m.classList.remove('open');
+        });
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          theoryModal.classList.remove('open');
+          shareModal.classList.remove('open');
+        }
+      });
+
+      // Initial Render
+      updateUI();
+      updateCompareUI();
+    })();
+  </script>
+</body>
+</html>
